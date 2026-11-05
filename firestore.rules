@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for role and authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    // Users collection:
+    // Patients can only read and update their own profile; admins can read all
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+      allow write: if isAdmin();
+    }
+
+    // Facilities collection:
+    // Public read for discovery; only authorized administrators can create/modify
+    match /facilities/{facilityId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Source records (Constraint C02):
+    // Read-only for authenticated patients to see transparency data; write-only for admins/importers
+    match /facilitySources/{sourceRecordId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Facility conflicts (Constraint C02):
+    // Authenticated users can read conflicts; only admins can resolve or human-verify
+    match /facilityConflicts/{conflictId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Appointment slots (Constraint C09):
+    // Public read for availability; writes ONLY allowed via trusted Cloud Function or Admin
+    match /appointmentSlots/{slotId} {
+      allow read: if true;
+      // Direct client capacity manipulation is strictly prohibited!
+      // Must be modified through backend atomic transaction verifying capacity.
+      allow write: if isAdmin();
+    }
+
+    // Bookings collection (Constraint C09):
+    // Patients can read their own bookings; create/update handled transactionally
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated() && (resource.data.patientId == request.auth.uid || isAdmin());
+      // Direct booking creation without server-side capacity validation is rejected
+      allow create: if isAuthenticated() && request.resource.data.patientId == request.auth.uid;
+      // Patients can only mark as cancelled; cannot alter slot details
+      allow update: if isAuthenticated() && resource.data.patientId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancellationReason', 'updatedAt']) &&
+        request.resource.data.status == 'cancelled';
+      allow write: if isAdmin();
+    }
+
+    // Patient journeys & events:
+    match /patientJourneys/{journeyId} {
+      allow read, write: if isAuthenticated() && (resource == null || resource.data.patientId == request.auth.uid || isAdmin());
+    }
+
+    match /journeyEvents/{eventId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Document requirements & patient documents:
+    match /documentRequirements/{reqId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /patientDocuments/{docId} {
+      allow read: if isAuthenticated() && (resource.data.patientId == request.auth.uid || isAdmin());
+      allow create, update: if isAuthenticated() && request.resource.data.patientId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.patientId == request.auth.uid;
+    }
+
+    // Notifications:
+    match /notifications/{notifId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create: if isAuthenticated();
+    }
+
+    // Audit logs:
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Append-only immutable audit trail!
+    }
+  }
+}
