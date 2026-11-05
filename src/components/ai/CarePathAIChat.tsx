@@ -9,19 +9,34 @@ interface CarePathAIChatProps {
   onNavigatePage: (page: string) => void;
 }
 
+const CHAT_SESSION_KEY = 'carepath_ai_chat_session';
+
 export const CarePathAIChat: React.FC<CarePathAIChatProps> = ({ onNavigatePage }) => {
   const { user } = useAuth();
   const { t } = useI18n();
 
-  const [messages, setMessages] = useState<AIMessage[]>([
-    {
-      id: 'welcome-msg',
-      sender: 'assistant',
-      content:
-        'Hello! I am your **CarePath AI administrative navigator**. I can explain why facilities were matched, clarify conflicting hospital records, check your document readiness, and outline your next administrative steps.\n\n*Please note: I cannot diagnose medical conditions or give clinical treatment advice.*',
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  const [messages, setMessages] = useState<AIMessage[]>(() => {
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        const saved = sessionStorage.getItem(CHAT_SESSION_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [
+      {
+        id: 'welcome-msg',
+        sender: 'assistant',
+        content:
+          'Hello! I am your **CarePath AI administrative navigator**. I can explain why facilities were matched, clarify conflicting hospital records, check your document readiness, and outline your next administrative steps.\n\n*Please note: I cannot diagnose medical conditions or give clinical treatment advice.*',
+        timestamp: new Date().toISOString(),
+      },
+    ];
+  });
 
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -32,6 +47,13 @@ export const CarePathAIChat: React.FC<CarePathAIChatProps> = ({ onNavigatePage }
   };
 
   useEffect(() => {
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(CHAT_SESSION_KEY, JSON.stringify(messages));
+      }
+    } catch {
+      // ignore
+    }
     scrollToBottom();
   }, [messages, isTyping]);
 

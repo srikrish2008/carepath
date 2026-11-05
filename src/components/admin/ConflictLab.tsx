@@ -66,6 +66,21 @@ export const ConflictLab: React.FC = () => {
         </Button>
       </div>
 
+      {/* Backend Architectural Disclosure */}
+      <div className="p-3 rounded-lg bg-slate-900 text-slate-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">
+            C02 Truth Engine: Active
+          </span>
+          <span className="text-slate-300 text-[11px]">
+            Scores computed as <code className="text-teal-300">Authority &times; FreshnessFactor</code>. Score deltas &lt; 20 trigger mandatory human review.
+          </span>
+        </div>
+        <span className="text-[10px] text-slate-400 font-mono">
+          Audit Trail: Append-only persistent event log
+        </span>
+      </div>
+
       {reconcileFeedback && (
         <div className="p-3 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 text-xs animate-in fade-in">
           {reconcileFeedback}

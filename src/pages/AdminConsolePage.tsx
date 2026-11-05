@@ -99,49 +99,51 @@ export const AdminConsolePage: React.FC = () => {
             <span className="text-xs text-slate-500 font-mono">{bookings.length} records</span>
           </div>
 
-          <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100 text-xs">
-            <div className="grid grid-cols-5 p-3 bg-slate-50 font-bold text-slate-700 uppercase tracking-wider text-[11px]">
-              <div>Reference / Tx ID</div>
-              <div>Patient</div>
-              <div>Slot &amp; Date</div>
-              <div>Status</div>
-              <div className="text-right">Idempotency Key</div>
-            </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[650px] border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100 text-xs">
+              <div className="grid grid-cols-5 p-3 bg-slate-50 font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                <div>Reference / Tx ID</div>
+                <div>Patient</div>
+                <div>Slot &amp; Date</div>
+                <div>Status</div>
+                <div className="text-right">Idempotency Key</div>
+              </div>
 
-            {bookings.length === 0 ? (
-              <div className="p-8 text-center text-slate-400">No bookings created yet.</div>
-            ) : (
-              bookings.map((b) => (
-                <div key={b.bookingId} className="grid grid-cols-5 p-3 items-center hover:bg-slate-50">
-                  <div>
-                    <div className="font-mono font-bold text-slate-900">{b.bookingReference}</div>
-                    <div className="font-mono text-[10px] text-slate-400">{b.transactionId}</div>
+              {bookings.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">No bookings created yet.</div>
+              ) : (
+                bookings.map((b) => (
+                  <div key={b.bookingId} className="grid grid-cols-5 p-3 items-center hover:bg-slate-50">
+                    <div>
+                      <div className="font-mono font-bold text-slate-900">{b.bookingReference}</div>
+                      <div className="font-mono text-[10px] text-slate-400">{b.transactionId}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-900">{b.patientName}</div>
+                      <div className="text-[10px] text-slate-500">{b.patientEmail}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-slate-800">{b.appointmentDate}</div>
+                      <div className="text-[10px] text-slate-500">{b.startTime} ({b.slotId})</div>
+                    </div>
+                    <div>
+                      <span
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                          b.status === 'confirmed'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {b.status}
+                      </span>
+                    </div>
+                    <div className="text-right font-mono text-[10px] text-slate-400 truncate">
+                      {b.idempotencyKey}
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-medium text-slate-900">{b.patientName}</div>
-                    <div className="text-[10px] text-slate-500">{b.patientEmail}</div>
-                  </div>
-                  <div>
-                    <div className="font-medium text-slate-800">{b.appointmentDate}</div>
-                    <div className="text-[10px] text-slate-500">{b.startTime} ({b.slotId})</div>
-                  </div>
-                  <div>
-                    <span
-                      className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                        b.status === 'confirmed'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-rose-100 text-rose-800'
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                  </div>
-                  <div className="text-right font-mono text-[10px] text-slate-400 truncate">
-                    {b.idempotencyKey}
-                  </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}

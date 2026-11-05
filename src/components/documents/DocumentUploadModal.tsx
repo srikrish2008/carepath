@@ -13,6 +13,26 @@ interface DocumentUploadModalProps {
   requirement: DocumentRequirement | null;
 }
 
+export function sanitizeAndValidateFilename(rawName: string): { valid: boolean; sanitized: string; error?: string } {
+  if (!rawName || typeof rawName !== 'string' || !rawName.trim()) {
+    return { valid: false, sanitized: '', error: 'Filename cannot be empty.' };
+  }
+  // Check for path traversal or dangerous control characters
+  const hasControlChars = [...rawName].some((c) => {
+    const code = c.charCodeAt(0);
+    return (code >= 0 && code <= 31) || code === 127;
+  });
+  if (rawName.includes('..') || rawName.includes('/') || rawName.includes('\\') || hasControlChars) {
+    return { valid: false, sanitized: '', error: 'Security Violation: Filename contains invalid or unsafe path characters.' };
+  }
+  const clean = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const parts = clean.split('.');
+  if (parts.length < 2 || !parts[parts.length - 1]) {
+    return { valid: false, sanitized: clean, error: 'File must have a valid extension.' };
+  }
+  return { valid: true, sanitized: clean };
+}
+
 export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
   isOpen,
   onClose,
@@ -52,8 +72,16 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
       return;
     }
 
+    // Sanitize and validate filename (path traversal protection)
+    const validation = sanitizeAndValidateFilename(fileName);
+    if (!validation.valid) {
+      setErrorMessage(validation.error || 'Invalid filename.');
+      return;
+    }
+    const cleanFileName = validation.sanitized;
+
     // Check file extension
-    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    const ext = cleanFileName.split('.').pop()?.toLowerCase() || '';
     if (!requirement.acceptedFileTypes.includes(ext)) {
       setErrorMessage(`Invalid file type .${ext}. Facility only accepts: ${requirement.acceptedFileTypes.join(', ')}.`);
       return;
@@ -73,7 +101,7 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
       requirementId: requirement.id,
       facilityId: requirement.facilityId,
       requirementName: requirement.name,
-      fileName,
+      fileName: cleanFileName,
       fileType,
       fileSizeBytes: fileSize,
       status: 'verified', // Clinic verified simulation
@@ -177,6 +205,11 @@ export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
                 <span className="text-[10px] text-slate-400 ml-auto font-mono">1.0 MB</span>
               </div>
             )}
+          </div>
+
+          {/* Prototype Local Sandbox Disclosure */}
+          <div className="p-2.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 text-[11px] leading-relaxed">
+            <strong>Demonstration Sandbox Notice:</strong> Uploaded documents are verified and processed locally within this demonstration sandbox. Files are not persisted to an external cloud vault or shared externally.
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

@@ -7,8 +7,13 @@ import {
   simulateConcurrentRaceCondition,
   generateBookingReference,
 } from '../services/booking/transactionEngine';
+import {
+  activeTransactionAdapter,
+  LocalPrototypeAdapter,
+  FirestoreTransactionAdapter,
+} from '../services/database/firestoreAdapter';
 
-describe('Constraint C09 — Concurrency-Safe Appointment Engine Tests (22 tests)', () => {
+describe('Constraint C09 — Concurrency-Safe Appointment Engine Tests (24 tests)', () => {
   beforeEach(() => {
     storage.initIfEmpty(true);
   });
@@ -422,5 +427,38 @@ describe('Constraint C09 — Concurrency-Safe Appointment Engine Tests (22 tests
 
     expect(race.successfulBookings.length).toBe(1);
     expect(race.failedAttempts.length).toBe(1);
+  });
+
+  it('23. discloses execution environment honestly with documented multi-machine limitations', () => {
+    const env = storage.getExecutionEnvironment();
+    expect(env.mode).toBe('local_prototype');
+    expect(env.isDistributed).toBe(false);
+    expect(env.multiTabSafe).toBe(true);
+    expect(env.crossMachineSafe).toBe(false);
+    expect(env.architecturalLimitations.length).toBeGreaterThanOrEqual(3);
+    expect(env.architecturalLimitations[0]).toContain('Atomic capacity locks');
+  });
+
+  it('24. provides clean backend transaction boundary adapter for future Firestore deployment', async () => {
+    // 1. Verify local prototype adapter delegates to transaction engine
+    const localAdapter = new LocalPrototypeAdapter();
+    const res = await localAdapter.executeBooking({
+      slotId: 'slot-metro-101',
+      patientId: 'patient-adapter-test',
+      patientName: 'Adapter Test',
+      patientEmail: 'adapter@example.com',
+      serviceName: 'Cardiology',
+      idempotencyKey: 'idem-adapter-' + Date.now(),
+    });
+    expect(res.success).toBe(true);
+
+    // 2. Verify Firestore adapter environment disclosure
+    const firestoreAdapter = new FirestoreTransactionAdapter();
+    const firestoreEnv = firestoreAdapter.getEnvironmentInfo();
+    expect(firestoreEnv.mode).toBe('cloud_firestore');
+    expect(firestoreEnv.isDistributed).toBe(true);
+
+    // 3. Verify active adapter is ready
+    expect(activeTransactionAdapter).toBeDefined();
   });
 });

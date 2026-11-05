@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ShieldCheck, AlertTriangle, Clock, CheckCircle2, UserCheck } from 'lucide-react';
-import type { FacilityConflict, ConflictingSourceValue } from '../../types';
+import { ShieldCheck, AlertTriangle, CheckCircle2, UserCheck } from 'lucide-react';
+import type { FacilityConflict } from '../../types';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { resolveConflictWithHumanVerification } from '../../services/conflict/reconciliationEngine';
@@ -68,16 +68,46 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
           </div>
         )}
 
-        {/* Existing Status */}
-        <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500">Current Status:</span>
-            <span className="font-bold text-slate-800 uppercase tracking-wider">{conflict.status}</span>
+        {/* Conflict Resolution State Differentiation Banner */}
+        {conflict.status === 'resolved_human' ? (
+          <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-300 text-xs space-y-1">
+            <div className="flex items-center gap-2 text-emerald-900 font-bold">
+              <UserCheck className="w-4 h-4 text-emerald-700" />
+              <span>Human-Verified Record (Administrator Decision Override)</span>
+            </div>
+            <div className="text-emerald-950 text-[11px] leading-relaxed pt-0.5">
+              Verified by: <strong className="font-semibold">{conflict.resolvedBy || 'Healthcare Administrator'}</strong> on {conflict.resolvedAt ? new Date(conflict.resolvedAt).toLocaleString() : 'Recent'}.
+            </div>
+            {conflict.humanVerificationNotes && (
+              <div className="text-emerald-900 text-[11px] bg-white/70 p-2 rounded border border-emerald-200 mt-1 italic">
+                &ldquo;{conflict.humanVerificationNotes}&rdquo;
+              </div>
+            )}
           </div>
-          <div className="text-slate-600 leading-relaxed pt-1">
-            <span className="font-semibold">Reconciliation Engine Output:</span> {conflict.resolutionExplanation}
+        ) : conflict.status === 'resolved_automatic' ? (
+          <div className="p-3 bg-sky-50 rounded-lg border border-sky-300 text-xs space-y-1">
+            <div className="flex items-center gap-2 text-sky-900 font-bold">
+              <ShieldCheck className="w-4 h-4 text-sky-700" />
+              <span>Automatically Reconciled Record (Authority-Freshness Algorithm)</span>
+            </div>
+            <div className="text-sky-950 text-[11px] leading-relaxed pt-0.5">
+              Resolved algorithmically via high-authority primary sources ($\Delta \ge 20$). No human override has been applied.
+            </div>
+            <div className="text-sky-900 text-[11px] bg-white/70 p-2 rounded border border-sky-200 mt-1">
+              {conflict.resolutionExplanation}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="p-3 bg-amber-50 rounded-lg border border-amber-300 text-xs space-y-1">
+            <div className="flex items-center gap-2 text-amber-900 font-bold">
+              <AlertTriangle className="w-4 h-4 text-amber-700" />
+              <span>Unresolved Contradiction (Pending Human Verification)</span>
+            </div>
+            <div className="text-amber-950 text-[11px] leading-relaxed pt-0.5">
+              Score margin between conflicting sources is too close ($\Delta &lt; 20$) or sources are equally authoritative. The system strictly refuses to guess without authorized human audit.
+            </div>
+          </div>
+        )}
 
         {/* Conflicting Source Records Table */}
         <div>

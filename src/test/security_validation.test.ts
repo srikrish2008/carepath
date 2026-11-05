@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { storage } from '../services/database/storage';
+import { storage, SecurityAuthorizationError } from '../services/database/storage';
 import { bookAppointmentSlot } from '../services/booking/transactionEngine';
+import { resolveConflictWithHumanVerification } from '../services/conflict/reconciliationEngine';
+import { DEMO_PATIENT, DEMO_ADMIN } from '../context/AuthContext';
 
-describe('Module N — Security & Input Validation Tests (5 tests)', () => {
+describe('Module N — Security & Input Validation Tests (8 tests)', () => {
   beforeEach(() => {
     storage.initIfEmpty(true);
   });
@@ -76,5 +78,45 @@ describe('Module N — Security & Input Validation Tests (5 tests)', () => {
     // Only authorized system or admin may persist source updates
     expect(originalAuth).toBeGreaterThanOrEqual(1);
     expect(originalAuth).toBeLessThanOrEqual(100);
+  });
+
+  it('6. rejects facility and source record modifications from non-admin roles', () => {
+    const facility = storage.getFacilities()[0];
+    expect(() => {
+      storage.saveFacility(facility, 'patient');
+    }).toThrow(SecurityAuthorizationError);
+
+    const source = storage.getSourceRecords()[0];
+    expect(() => {
+      storage.saveSourceRecord(source, 'patient');
+    }).toThrow(SecurityAuthorizationError);
+  });
+
+  it('7. strictly prevents regular patients from performing administrative human conflict overrides', () => {
+    // Save patient profile
+    storage.saveUser({
+      ...DEMO_PATIENT,
+      id: 'patient-hacker',
+      role: 'patient',
+    });
+
+    expect(() => {
+      resolveConflictWithHumanVerification(
+        'conf-riverdale-wheelchair',
+        true,
+        'Unauthorized override attempt',
+        'patient-hacker'
+      );
+    }).toThrow(/Security Authorization Violation/);
+  });
+
+  it('8. verifies that user profiles and storage never contain plaintext passwords or secrets', () => {
+    const patientKeys = Object.keys(DEMO_PATIENT);
+    const adminKeys = Object.keys(DEMO_ADMIN);
+
+    expect(patientKeys).not.toContain('password');
+    expect(patientKeys).not.toContain('secret');
+    expect(adminKeys).not.toContain('password');
+    expect(adminKeys).not.toContain('secret');
   });
 });

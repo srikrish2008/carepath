@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { storage } from '../services/database/storage';
+import { sanitizeAndValidateFilename } from '../components/documents/DocumentUploadModal';
 import type { PatientDocument } from '../types';
 
-describe('Module G — Smart Document Centre Tests (10 tests)', () => {
+describe('Module G — Smart Document Centre Tests (11 tests)', () => {
   beforeEach(() => {
     storage.initIfEmpty(true);
   });
@@ -128,5 +129,25 @@ describe('Module G — Smart Document Centre Tests (10 tests)', () => {
 
     const notifsAfter = storage.getNotifications('patient-doc-user');
     expect(notifsAfter.length).toBe(notifsBefore + 1);
+  });
+
+  it('11. sanitizes filenames and blocks path traversal attempts', () => {
+    // Malicious path traversal
+    const traversal = sanitizeAndValidateFilename('../../secret/passwords.txt');
+    expect(traversal.valid).toBe(false);
+    expect(traversal.error).toContain('Security Violation');
+
+    // Windows backslash path
+    const winPath = sanitizeAndValidateFilename('C:\\Windows\\System32\\file.pdf');
+    expect(winPath.valid).toBe(false);
+
+    // Missing extension
+    const noExt = sanitizeAndValidateFilename('passport_photo');
+    expect(noExt.valid).toBe(false);
+
+    // Valid filename
+    const valid = sanitizeAndValidateFilename('my_insurance_card.pdf');
+    expect(valid.valid).toBe(true);
+    expect(valid.sanitized).toBe('my_insurance_card.pdf');
   });
 });

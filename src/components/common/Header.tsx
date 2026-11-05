@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
           <FlaskConical className="w-3.5 h-3.5 text-teal-400" aria-hidden="true" />
           <span className="font-medium text-teal-300">HACKATHON DEMO MODE:</span>
           <span className="hidden sm:inline text-slate-300">
-            Evaluating PS3 with constraints C02 (Truth Conflict) &amp; C09 (Two People, One Resource Concurrency). All records synthetic.
+            {t.app.demoBanner}
           </span>
         </div>
         <div className="flex items-center gap-3">

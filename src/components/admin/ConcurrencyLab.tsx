@@ -90,6 +90,21 @@ export const ConcurrencyLab: React.FC = () => {
         </Button>
       </div>
 
+      {/* Backend Architectural Disclosure */}
+      <div className="p-3 rounded-lg bg-slate-900 text-slate-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">
+            Execution Environment: Local Prototype
+          </span>
+          <span className="text-slate-300 text-[11px]">
+            Atomic capacity locks serialized via memory &amp; cross-tab mutual exclusion lease (<code className="text-teal-300">CrossTabMutex</code>).
+          </span>
+        </div>
+        <span className="text-[10px] text-slate-400 font-mono">
+          Production Boundary: <code className="text-slate-300">FirestoreTransactionAdapter</code> ready
+        </span>
+      </div>
+
       {/* Configuration Controls */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
         <div>

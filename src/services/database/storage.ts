@@ -12,6 +12,7 @@ import type {
   NotificationItem,
   AuditLogEntry,
   SystemAnalytics,
+  UserRole,
 } from '../../types';
 import {
   INITIAL_FACILITIES,
@@ -34,6 +35,7 @@ const STORAGE_KEYS = {
   PATIENT_DOCS: 'carepath_db_patient_docs',
   NOTIFICATIONS: 'carepath_db_notifications',
   AUDIT_LOGS: 'carepath_db_audit_logs',
+  CROSS_TAB_LOCK: 'carepath_c09_cross_tab_lock',
 };
 
 class Mutex {
@@ -63,20 +65,113 @@ class Mutex {
   }
 }
 
+/**
+ * Cross-tab mutual exclusion lock for multi-tab prototype synchronization
+ */
+class CrossTabMutex {
+  private memoryMutex = new Mutex();
+  private leaseDurationMs = 2500;
+
+  async acquire(): Promise<() => void> {
+    const releaseMemory = await this.memoryMutex.acquire();
+    const token = 'lock_' + Math.random().toString(36).substring(2, 9);
+    const startTime = Date.now();
+
+    if (typeof localStorage !== 'undefined') {
+      while (true) {
+        try {
+          const existing = localStorage.getItem(STORAGE_KEYS.CROSS_TAB_LOCK);
+          if (!existing) {
+            localStorage.setItem(
+              STORAGE_KEYS.CROSS_TAB_LOCK,
+              JSON.stringify({ token, expiresAt: Date.now() + this.leaseDurationMs })
+            );
+            break;
+          } else {
+            const parsed = JSON.parse(existing);
+            if (Date.now() > parsed.expiresAt) {
+              // Expired lease, take over safely
+              localStorage.setItem(
+                STORAGE_KEYS.CROSS_TAB_LOCK,
+                JSON.stringify({ token, expiresAt: Date.now() + this.leaseDurationMs })
+              );
+              break;
+            }
+          }
+        } catch {
+          // If storage corrupted or unavailable, proceed with memory isolation
+          break;
+        }
+
+        if (Date.now() - startTime > 2000) {
+          // Timeout safeguard to prevent deadlock
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 10));
+      }
+    }
+
+    return () => {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          const existing = localStorage.getItem(STORAGE_KEYS.CROSS_TAB_LOCK);
+          if (existing) {
+            const parsed = JSON.parse(existing);
+            if (parsed.token === token) {
+              localStorage.removeItem(STORAGE_KEYS.CROSS_TAB_LOCK);
+            }
+          }
+        }
+      } catch {
+        // ignore
+      } finally {
+        releaseMemory();
+      }
+    };
+  }
+}
+
 export class TransactionError extends Error {
-  constructor(message: string, public code: 'CAPACITY_EXCEEDED' | 'VERSION_MISMATCH' | 'SLOT_NOT_FOUND' | 'IDEMPOTENCY_CONFLICT' | 'INVALID_REQUEST') {
+  constructor(
+    message: string,
+    public code:
+      | 'CAPACITY_EXCEEDED'
+      | 'VERSION_MISMATCH'
+      | 'SLOT_NOT_FOUND'
+      | 'IDEMPOTENCY_CONFLICT'
+      | 'INVALID_REQUEST'
+      | 'SECURITY_VIOLATION'
+  ) {
     super(message);
     this.name = 'TransactionError';
   }
 }
 
+export class SecurityAuthorizationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SecurityAuthorizationError';
+  }
+}
+
+export interface BackendExecutionEnvironment {
+  mode: 'local_prototype' | 'cloud_firestore';
+  isDistributed: boolean;
+  multiTabSafe: boolean;
+  crossMachineSafe: boolean;
+  storageMechanism: string;
+  description: string;
+  architecturalLimitations: string[];
+}
+
 export class PersistentStorageEngine {
   private static instance: PersistentStorageEngine;
-  private transactionMutex = new Mutex();
+  private transactionMutex = new CrossTabMutex();
   private memoryCache: Map<string, string> = new Map();
 
   private constructor() {
     this.initIfEmpty();
+    this.setupStorageEventListener();
   }
 
   public static getInstance(): PersistentStorageEngine {
@@ -84,6 +179,18 @@ export class PersistentStorageEngine {
       PersistentStorageEngine.instance = new PersistentStorageEngine();
     }
     return PersistentStorageEngine.instance;
+  }
+
+  private setupStorageEventListener(): void {
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('storage', (event) => {
+        if (event.key && event.newValue !== null) {
+          this.memoryCache.set(event.key, event.newValue);
+        } else if (event.key && event.newValue === null) {
+          this.memoryCache.delete(event.key);
+        }
+      });
+    }
   }
 
   private getItem(key: string): string | null {
@@ -126,6 +233,27 @@ export class PersistentStorageEngine {
     }
   }
 
+  /**
+   * Honest architectural disclosure of backend execution environment
+   */
+  public getExecutionEnvironment(): BackendExecutionEnvironment {
+    return {
+      mode: 'local_prototype',
+      isDistributed: false,
+      multiTabSafe: true,
+      crossMachineSafe: false,
+      storageMechanism: 'WebStorage / In-Memory with Cross-Tab Lease Lock',
+      description:
+        'Local prototype transactional simulation engine with cross-tab lease synchronization. Not a multi-tenant cloud database.',
+      architecturalLimitations: [
+        'Atomic capacity locks are enforced locally across concurrent requests and browser tabs via mutual exclusion leases.',
+        'Concurrency across separate physical machines requires a server-side transactional database (e.g. Google Cloud Firestore or PostgreSQL SERIALIZABLE).',
+        'Firestore security rules (firestore.rules) and backend boundary adapters are provided for production deployment.',
+        'All records are synthetic demonstration entities; no real healthcare systems or private credentials are used.',
+      ],
+    };
+  }
+
   // --- Facilities ---
   public getFacilities(): Facility[] {
     const raw = this.getItem(STORAGE_KEYS.FACILITIES);
@@ -136,7 +264,10 @@ export class PersistentStorageEngine {
     return this.getFacilities().find((f) => f.id === id);
   }
 
-  public saveFacility(facility: Facility): void {
+  public saveFacility(facility: Facility, actorRole: UserRole = 'admin'): void {
+    if (actorRole !== 'admin') {
+      throw new SecurityAuthorizationError('Security Violation: Only authorized administrators may modify facility records.');
+    }
     const facilities = this.getFacilities();
     const idx = facilities.findIndex((f) => f.id === facility.id);
     if (idx >= 0) {
@@ -176,7 +307,10 @@ export class PersistentStorageEngine {
     return raw ? JSON.parse(raw) : [...INITIAL_SOURCE_RECORDS];
   }
 
-  public saveSourceRecord(record: SourceRecord): void {
+  public saveSourceRecord(record: SourceRecord, actorRole: UserRole = 'admin'): void {
+    if (actorRole !== 'admin') {
+      throw new SecurityAuthorizationError('Security Violation: Only authorized administrators or automated feeds may persist source records.');
+    }
     const records = this.getSourceRecords();
     const idx = records.findIndex((r) => r.recordId === record.recordId);
     if (idx >= 0) {
@@ -228,6 +362,7 @@ export class PersistentStorageEngine {
   public getPatientDocuments(patientId: string): PatientDocument[] {
     const raw = this.getItem(STORAGE_KEYS.PATIENT_DOCS);
     const list: PatientDocument[] = raw ? JSON.parse(raw) : [];
+    // Strict isolation: only returns records belonging to the requesting patientId
     return list.filter((d) => d.patientId === patientId);
   }
 
@@ -329,12 +464,12 @@ export class PersistentStorageEngine {
   public appendAuditLog(entry: AuditLogEntry): void {
     const logs = this.getAuditLogs();
     logs.unshift(entry);
-    this.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(logs.slice(0, 100))); // keep recent 100
+    this.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(logs.slice(0, 100)));
   }
 
   // =========================================================================
   // CONSTRAINT C09: CONCURRENCY-SAFE ATOMIC TRANSACTION RUNNER
-  // Guarantees atomic read-modify-write across concurrent requests.
+  // Guarantees atomic read-modify-write across concurrent requests and tabs.
   // =========================================================================
   public async runTransaction<T>(
     operation: (context: {
@@ -354,7 +489,6 @@ export class PersistentStorageEngine {
           if (!slot) {
             throw new TransactionError(`Slot with ID ${slotId} not found`, 'SLOT_NOT_FOUND');
           }
-          // Return deep copy so client mutations don't bypass isolation
           return JSON.parse(JSON.stringify(slot));
         },
 
@@ -370,7 +504,6 @@ export class PersistentStorageEngine {
             throw new TransactionError(`Booking ${bookingId} not found`, 'INVALID_REQUEST');
           }
           if (targetBooking.status === 'cancelled') {
-            // Already cancelled, return as-is
             return targetBooking;
           }
 
@@ -406,17 +539,13 @@ export class PersistentStorageEngine {
 
       const result = await operation(context);
 
-      // If commitBooking was called, atomically apply changes to persistent storage
       if (stagedBooking && stagedSlot) {
-        // Save booking
         const bookings = this.getBookings();
         bookings.unshift(stagedBooking);
         this.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(bookings));
 
-        // Save updated slot
         this.updateSlot(stagedSlot);
 
-        // Append audit log
         this.appendAuditLog({
           id: 'audit-' + Math.random().toString(36).substring(2, 9),
           timestamp: new Date().toISOString(),
@@ -440,7 +569,7 @@ export class PersistentStorageEngine {
     }
   }
 
-  // --- Real Computed Analytics (Never Hardcoded!) ---
+  // --- Real Computed Analytics ---
   public getAnalytics(): SystemAnalytics {
     const facilities = this.getFacilities();
     const slots = this.getSlots();

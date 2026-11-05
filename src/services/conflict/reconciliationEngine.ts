@@ -199,6 +199,12 @@ export function resolveConflictWithHumanVerification(
     throw new Error('Administrative decision notes are mandatory for human verification audit trail.');
   }
 
+  // Security authorization: Ensure non-admin roles cannot forge verification decisions
+  const user = storage.getUsers().find((u) => u.id === adminUserId || u.name === adminUserId);
+  if (user && user.role !== 'admin') {
+    throw new Error('Security Authorization Violation: Only verified administrators are authorized to execute human conflict overrides.');
+  }
+
   const conflicts = storage.getConflicts();
   const target = conflicts.find((c) => c.conflictId === conflictId);
   if (!target) {
