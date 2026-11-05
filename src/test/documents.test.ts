@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { storage } from '../services/database/storage';
-import { sanitizeAndValidateFilename } from '../components/documents/DocumentUploadModal';
+import { sanitizeAndValidateFilename } from '../services/validation/filenameSanitizer';
 import type { PatientDocument } from '../types';
 
 describe('Module G — Smart Document Centre Tests (11 tests)', () => {

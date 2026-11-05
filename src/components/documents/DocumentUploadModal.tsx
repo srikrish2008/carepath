@@ -6,31 +6,12 @@ import { Button } from '../common/Button';
 import { storage } from '../../services/database/storage';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../context/AppDataContext';
+import { sanitizeAndValidateFilename } from '../../services/validation/filenameSanitizer';
 
 interface DocumentUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   requirement: DocumentRequirement | null;
-}
-
-export function sanitizeAndValidateFilename(rawName: string): { valid: boolean; sanitized: string; error?: string } {
-  if (!rawName || typeof rawName !== 'string' || !rawName.trim()) {
-    return { valid: false, sanitized: '', error: 'Filename cannot be empty.' };
-  }
-  // Check for path traversal or dangerous control characters
-  const hasControlChars = [...rawName].some((c) => {
-    const code = c.charCodeAt(0);
-    return (code >= 0 && code <= 31) || code === 127;
-  });
-  if (rawName.includes('..') || rawName.includes('/') || rawName.includes('\\') || hasControlChars) {
-    return { valid: false, sanitized: '', error: 'Security Violation: Filename contains invalid or unsafe path characters.' };
-  }
-  const clean = rawName.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const parts = clean.split('.');
-  if (parts.length < 2 || !parts[parts.length - 1]) {
-    return { valid: false, sanitized: clean, error: 'File must have a valid extension.' };
-  }
-  return { valid: true, sanitized: clean };
 }
 
 export const DocumentUploadModal: React.FC<DocumentUploadModalProps> = ({
