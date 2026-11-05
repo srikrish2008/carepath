@@ -149,10 +149,9 @@ export async function processAIChatMessage(
       sender: 'assistant',
       isClinicalRefusal: true,
       content:
-        'I am CarePath AI, an administrative healthcare access navigator. I cannot evaluate medical symptoms, diagnose health conditions, or recommend medications. If you are experiencing urgent symptoms, please dial emergency services immediately or visit an emergency room. For non-urgent health concerns, I can help you find and schedule an appointment with a verified healthcare clinic.',
+        'I am CarePath AI, an administrative healthcare access navigator. I cannot evaluate medical symptoms, diagnose health conditions, or recommend medications. If this may be an emergency, contact your local emergency services immediately. For non-urgent health concerns, I can help you find and schedule an appointment with a verified healthcare clinic.',
       timestamp,
       groundedReferences: [
-        { title: 'Emergency Guidance', link: 'tel:911' },
         { title: 'Find Verified Healthcare Clinics', link: '/discovery' },
       ],
     };

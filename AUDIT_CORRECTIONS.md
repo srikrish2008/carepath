@@ -37,7 +37,7 @@ CarePath has completed a comprehensive audit-based architectural hardening and c
 ### Phase 3 — CarePath AI & Grounded Assistant Boundaries
 - **External LLM Proxy Boundary (`requestExternalLLMProxy`)**: Implemented a secure backend proxy pattern with timeout safeguards (8000ms) and automatic fallback to prevent client-side key exposure.
 - **Deterministic Grounded Fallback**: Grounded queries dynamically inspect active patient journey stages, document requirements, active bookings, and C02/C09 engine state without hallucination.
-- **Strict Clinical Refusal Guardrails**: Automatically identifies and strictly refuses symptom evaluation, medical diagnosis, and medication prescription queries, returning emergency hotline (`tel:911`) and verified clinic links (`/discovery`).
+- **Strict Clinical Refusal Guardrails**: Automatically identifies and strictly refuses symptom evaluation, medical diagnosis, and medication prescription queries, returning locale-neutral emergency guidance and verified clinic links (`/discovery`).
 - **Session Conversation Persistence**: Chat history persists across page navigation within the session via `sessionStorage` (`carepath_ai_chat_session`).
 
 ### Phase 4 — Constraint C02 (The Truth Is Conflicting Reconciliation)
