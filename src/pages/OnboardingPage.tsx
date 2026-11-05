@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../context/AppDataContext';
 import { useI18n } from '../i18n';
@@ -61,6 +61,14 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
         </h1>
         <p className="text-xs text-slate-500 max-w-md mx-auto">
           {t.onboarding.subtitle}
+        </p>
+      </div>
+
+      {/* Demo Environment Privacy Notice */}
+      <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-start gap-2.5 leading-relaxed">
+        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+        <p className="text-[11px]">
+          {t.app.dataEntryNotice}
         </p>
       </div>
 

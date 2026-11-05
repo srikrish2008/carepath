@@ -4,6 +4,7 @@ export const en = {
     tagline: 'Healthcare access, without the confusion.',
     subtitle: 'Find the right care. Secure your appointment. Know your next step.',
     demoBanner: 'DEMO MODE: Using synthetic demonstration data with real transactional concurrency and source reconciliation engines.',
+    dataEntryNotice: 'Demo environment: Information entered here is stored locally in your browser. Do not enter real medical or personal health information. This prototype is not a production healthcare service.',
   },
   nav: {
     overview: 'Overview',
@@ -215,7 +216,7 @@ export const en = {
   ai: {
     title: 'CarePath AI Assistant',
     subtitle: 'Administrative Healthcare Access Navigator',
-    disclaimer: 'Administrative Assistant Only: I explain recommendations, facility requirements, and documents. I do NOT diagnose medical conditions or prescribe treatments.',
+    disclaimer: 'CarePath AI provides healthcare navigation and administrative guidance only. It does not provide medical diagnoses or treatment advice.',
     inputPlaceholder: 'Ask about facilities, required documents, appointment status, or booking conflicts...',
     send: 'Send',
     clinicalRefusalTitle: 'Clinical Guidance Notice',

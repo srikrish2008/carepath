@@ -4,6 +4,8 @@ import {
   CheckCircle2,
   XCircle,
   Zap,
+  Users,
+  Lock,
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { storage } from '../../services/database/storage';
@@ -14,7 +16,7 @@ import type { Booking, AppointmentSlot } from '../../types';
 export const ConcurrencyLab: React.FC = () => {
   const { slots, refreshData } = useAppData();
   const [targetSlotId, setTargetSlotId] = useState('slot-c09-target-single');
-  const [competitorCount, setCompetitorCount] = useState<number>(5);
+  const [competitorCount, setCompetitorCount] = useState<number>(2);
   const [isRunning, setIsRunning] = useState(false);
   const [testResults, setTestResults] = useState<{
     totalAttempts: number;
@@ -32,12 +34,21 @@ export const ConcurrencyLab: React.FC = () => {
 
     const startTime = performance.now();
 
-    // Create simulated competitor requests
-    const simulatedRequests = Array.from({ length: competitorCount }, (_, i) => ({
-      patientId: `sim-competitor-${i + 1}-${Math.random().toString(36).substring(2, 6)}`,
-      patientName: `Simulated Patient #${i + 1}`,
-      patientEmail: `competitor.${i + 1}@race-simulation.example`,
-    }));
+    // Create realistic competitor requests (User A, User B, etc.)
+    const simulatedRequests = Array.from({ length: competitorCount }, (_, i) => {
+      const isUserA = i === 0;
+      const isUserB = i === 1;
+      const name = isUserA
+        ? 'User A (Sarah Miller)'
+        : isUserB
+        ? 'User B (David Kumar)'
+        : `User ${String.fromCharCode(65 + i)} (Competitor #${i + 1})`;
+      return {
+        patientId: `sim-user-${String.fromCharCode(65 + i).toLowerCase()}-${Math.random().toString(36).substring(2, 6)}`,
+        patientName: name,
+        patientEmail: `patient.${String.fromCharCode(65 + i).toLowerCase()}@c09-race.example`,
+      };
+    });
 
     const result = await simulateConcurrentRaceCondition(targetSlotId, simulatedRequests);
     const executionTimeMs = Math.round(performance.now() - startTime);
@@ -124,20 +135,30 @@ export const ConcurrencyLab: React.FC = () => {
 
         <div>
           <label className="block font-semibold text-slate-700 mb-1">
-            Simultaneous Concurrent Requests ({competitorCount})
+            Simultaneous Competitors ({competitorCount} Patients)
           </label>
-          <div className="flex items-center gap-2">
-            {[2, 5, 10, 20].map((num) => (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCompetitorCount(2)}
+              className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-lg border transition-colors ${
+                competitorCount === 2
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+              }`}
+            >
+              2 (User A vs B)
+            </button>
+            {[5, 10, 20].map((num) => (
               <button
                 key={num}
                 onClick={() => setCompetitorCount(num)}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-colors ${
+                className={`py-1.5 px-2.5 text-xs font-semibold rounded-lg border transition-colors ${
                   competitorCount === num
-                    ? 'bg-slate-900 text-white border-slate-900'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                 }`}
               >
-                {num} Patients
+                {num}
               </button>
             ))}
           </div>
@@ -188,9 +209,9 @@ export const ConcurrencyLab: React.FC = () => {
         </div>
       )}
 
-      {/* Test Results Log */}
+      {/* Test Results Section */}
       {testResults && (
-        <div className="space-y-4 animate-in fade-in">
+        <div className="space-y-6 animate-in fade-in">
           {/* Summary Banner */}
           <div
             className={`p-4 rounded-xl border flex items-start gap-3 ${
@@ -212,11 +233,116 @@ export const ConcurrencyLab: React.FC = () => {
             </div>
           </div>
 
-          {/* Audit Log Table */}
+          {/* User A vs User B Side-by-Side Comparison */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wider">
+              <Users className="w-4 h-4 text-brand-600" />
+              <span>Competitor Outcome Comparison (User A vs User B)</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* User A Card (Winner) */}
+              {testResults.successfulBookings[0] && (
+                <div className="p-4 rounded-2xl border-2 border-emerald-300 bg-emerald-50/30 shadow-xs space-y-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-slate-900">
+                      {testResults.successfulBookings[0].patientName}
+                    </span>
+                    <span className="font-mono font-bold text-[10px] uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      Slot Secured
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg bg-white border border-emerald-200 space-y-1 text-[11px]">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Booking Reference:</span>
+                      <strong className="font-mono text-brand-700">{testResults.successfulBookings[0].bookingReference}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Transaction ID:</span>
+                      <span className="font-mono text-slate-600">{testResults.successfulBookings[0].transactionId}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Status:</span>
+                      <span className="font-bold uppercase text-emerald-700">Confirmed</span>
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] text-emerald-900 leading-relaxed bg-emerald-100/60 p-2 rounded border border-emerald-200/60">
+                    <strong className="font-semibold">Lock Event:</strong> Acquired mutex lock &rarr; Verified slot capacity ($1 \le 1$) &rarr; Incremented confirmed count &rarr; Committed booking &rarr; Released lock.
+                  </div>
+                </div>
+              )}
+
+              {/* User B Card (Rejected with Alternatives) */}
+              {testResults.failedAttempts[0] && (
+                <div className="p-4 rounded-2xl border-2 border-rose-300 bg-rose-50/30 shadow-xs space-y-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-slate-900">
+                      {testResults.failedAttempts[0].patientId.includes('sim-user-b') ? 'User B (David Kumar)' : testResults.failedAttempts[0].patientId}
+                    </span>
+                    <span className="font-mono font-bold text-[10px] uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 inline-flex items-center gap-1">
+                      <XCircle className="w-3 h-3 text-rose-600" />
+                      Capacity Exceeded
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg bg-white border border-rose-200 space-y-1 text-[11px]">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Error Code:</span>
+                      <strong className="font-mono text-rose-700">CAPACITY_EXCEEDED</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Slot Status:</span>
+                      <span className="font-semibold text-slate-700">Fully Booked (0 left)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Action:</span>
+                      <span className="font-semibold text-brand-700">Alternative Slots Offered</span>
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] text-rose-900 leading-relaxed bg-rose-100/60 p-2 rounded border border-rose-200/60">
+                    <strong className="font-semibold">Lock Event:</strong> Acquired mutex lock &rarr; Checked slot capacity ($1 \ge 1$) &rarr; Detected capacity full &rarr; Aborted write &rarr; Returned alternatives &rarr; Released lock.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Transaction Lock Events Timeline */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+            <div className="flex items-center gap-2 font-bold text-slate-900">
+              <Lock className="w-4 h-4 text-brand-600" />
+              <span>C09 Atomic Lock Execution Flow</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-[11px]">
+              <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+                <span className="font-mono font-bold text-[10px] text-slate-400">T0 • DISPATCH</span>
+                <p className="text-slate-700">User A &amp; User B simultaneously submit booking requests for the same slot.</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+                <span className="font-mono font-bold text-[10px] text-teal-600">T1 • MUTEX LOCK</span>
+                <p className="text-slate-700"><code className="text-teal-700 font-mono">CrossTabMutex</code> serializes the claims to prevent memory race collisions.</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+                <span className="font-mono font-bold text-[10px] text-emerald-600">T2 • USER A COMMITS</span>
+                <p className="text-slate-700">Capacity check passes ($1 \le 1$). Slot version increments ($v \to v+1$), confirmed count becomes 1.</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+                <span className="font-mono font-bold text-[10px] text-rose-600">T3 • USER B REJECTS</span>
+                <p className="text-slate-700">Capacity full ($1 \ge 1$). Write aborted; alternative recommendations returned.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Audit Log Table */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center justify-between">
-              <span>Transaction Log</span>
-              <span>Total Requests: {testResults.totalAttempts}</span>
+              <span>All Competitor Transaction Records</span>
+              <span>Total Attempts: {testResults.totalAttempts}</span>
             </div>
 
             <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 text-xs">

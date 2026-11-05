@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogOut, CheckCircle2 } from 'lucide-react';
+import { LogOut, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { Button } from '../components/common/Button';
@@ -41,6 +41,14 @@ export const ProfilePage: React.FC = () => {
           <span>Profile preferences updated successfully.</span>
         </div>
       )}
+
+      {/* Demo Environment Privacy Notice */}
+      <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs flex items-start gap-2.5 leading-relaxed">
+        <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+        <p className="text-[11px]">
+          {t.app.dataEntryNotice}
+        </p>
+      </div>
 
       <form
         onSubmit={handleSave}

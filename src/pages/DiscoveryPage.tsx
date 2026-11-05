@@ -139,9 +139,14 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           </div>
 
           {evaluatedFacilities.length === 0 ? (
-            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-2">
-              <HelpCircle className="w-8 h-8 text-slate-300 mx-auto" />
-              <p>No facilities match your active search and constraint criteria.</p>
+            <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-3">
+              <HelpCircle className="w-9 h-9 text-slate-300 mx-auto" />
+              <div className="space-y-1">
+                <h4 className="font-bold text-sm text-slate-900">No matching healthcare facilities found</h4>
+                <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  No clinics match your active filters and search terms. Try searching for a specialty like &ldquo;Cardiology&rdquo;, clear keyword filters, or disable wheelchair and referral constraints.
+                </p>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
