@@ -185,7 +185,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             {confirmedBooking.referralReference && (
               <div className="flex items-center justify-between border-t border-slate-200/60 pt-2">
-                <span className="text-slate-500">Verified Referral Code:</span>
+                <span className="text-slate-500">Referral Reference (Format Accepted):</span>
                 <span className="font-mono font-semibold text-slate-800">
                   {confirmedBooking.referralReference}
                 </span>

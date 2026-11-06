@@ -120,4 +120,23 @@ describe('Authentication & Patient Identity Experience', () => {
     authService.signOut();
     expect(authService.getCurrentUser()).toBeNull();
   });
+
+  it('translates Firebase error codes to patient-friendly explanations', async () => {
+    const { mapFirebaseAuthError } = await import('../services/auth/authService');
+
+    expect(mapFirebaseAuthError({ code: 'auth/user-not-found' })).toContain('No account was found');
+    expect(mapFirebaseAuthError({ code: 'auth/wrong-password' })).toContain('Incorrect password');
+    expect(mapFirebaseAuthError({ code: 'auth/invalid-credential' })).toContain('Invalid email or password');
+    expect(mapFirebaseAuthError({ code: 'auth/email-already-in-use' })).toContain('already exists');
+    expect(mapFirebaseAuthError({ code: 'auth/weak-password' })).toContain('at least 6 characters');
+    expect(mapFirebaseAuthError({ code: 'auth/network-request-failed' })).toContain('Network connection error');
+  });
+
+  it('accurately reports Firebase configuration status when unconfigured in offline mode', () => {
+    const status = authService.getConfigStatus();
+    expect(status.mode).toBe('offline_demo');
+    expect(status.isConfigured).toBe(false);
+    expect(status.missingKeys).toContain('VITE_FIREBASE_API_KEY');
+    expect(authService.isFirebaseLive()).toBe(false);
+  });
 });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, User, Phone, MapPin, CheckCircle2, AlertCircle, ArrowLeft, KeyRound } from 'lucide-react';
+import { Lock, Mail, User, Phone, MapPin, CheckCircle2, AlertCircle, ArrowLeft, KeyRound, ShieldCheck, Database } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/common/Button';
 
@@ -9,7 +9,15 @@ interface AuthPageProps {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialMode = 'signin' }) => {
-  const { loginWithPassword, registerWithPassword, requestPasswordReset, confirmPasswordReset, loginAsDemo } = useAuth();
+  const {
+    loginWithPassword,
+    registerWithPassword,
+    requestPasswordReset,
+    confirmPasswordReset,
+    loginAsDemo,
+    isFirebaseLive,
+    firebaseStatus,
+  } = useAuth();
 
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>(initialMode);
   const [email, setEmail] = useState('');
@@ -100,9 +108,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialMode = 'si
     const res = await requestPasswordReset(email);
     setIsLoading(false);
 
-    if (res.success && res.token) {
-      setResetToken(res.token);
-      setResetInstructions(res.instructions || `Reset token: ${res.token}`);
+    if (res.success) {
+      if (res.token) {
+        setResetToken(res.token);
+        setResetInstructions(res.instructions || `Reset token: ${res.token}`);
+      } else {
+        setResetSuccess(true);
+        setResetInstructions(res.instructions || 'A secure reset link was dispatched by Firebase Authentication.');
+      }
     } else {
       setError(res.error || 'Failed to process password reset.');
     }
@@ -164,6 +177,35 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialMode = 'si
 
       {/* Main Card */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5 text-xs">
+        {/* Transparent Firebase Status Indicator */}
+        <div
+          className={`p-2.5 rounded-xl border text-[11px] flex items-center justify-between gap-2 ${
+            isFirebaseLive
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : 'bg-slate-50 border-slate-200 text-slate-700'
+          }`}
+        >
+          <div className="flex items-center gap-1.5 font-medium">
+            {isFirebaseLive ? (
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+            ) : (
+              <Database className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+            )}
+            <span>
+              {isFirebaseLive
+                ? `Firebase Auth Active (${firebaseStatus.projectId || 'Live'})`
+                : 'Offline Demo Mode (Set VITE_FIREBASE_* in .env for Live Firebase)'}
+            </span>
+          </div>
+          <span
+            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+              isFirebaseLive ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-200 text-slate-700'
+            }`}
+          >
+            {isFirebaseLive ? 'Live' : 'Sandbox'}
+          </span>
+        </div>
+
         {/* Error message */}
         {error && (
           <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2 animate-in fade-in">
@@ -408,8 +450,25 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, initialMode = 'si
             {resetSuccess ? (
               <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-center space-y-2 animate-in fade-in">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                <div className="font-bold text-sm">Password Updated!</div>
-                <p className="text-xs text-emerald-700">Redirecting to sign in...</p>
+                <div className="font-bold text-sm">
+                  {isFirebaseLive ? 'Reset Email Dispatched!' : 'Password Updated!'}
+                </div>
+                <p className="text-xs text-emerald-700 leading-relaxed">
+                  {resetInstructions || 'Please check your email inbox to proceed.'}
+                </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetSuccess(false);
+                      setMode('signin');
+                      setError('');
+                    }}
+                    className="text-xs font-semibold text-teal-800 hover:underline"
+                  >
+                    Return to Sign In &rarr;
+                  </button>
+                </div>
               </div>
             ) : !resetToken ? (
               <form onSubmit={handleRequestReset} className="space-y-4">

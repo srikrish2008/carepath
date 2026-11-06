@@ -436,6 +436,17 @@ export class PersistentStorageEngine {
     return this.getBookings().filter((b) => b.patientId === patientId);
   }
 
+  public saveBooking(booking: Booking): void {
+    const list = this.getBookings();
+    const idx = list.findIndex((b) => b.bookingId === booking.bookingId);
+    if (idx >= 0) {
+      list[idx] = booking;
+    } else {
+      list.unshift(booking);
+    }
+    this.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(list));
+  }
+
   // --- Document Requirements & Patient Documents ---
   public getDocumentRequirements(facilityId?: string): DocumentRequirement[] {
     const raw = this.getItem(STORAGE_KEYS.DOC_REQUIREMENTS);

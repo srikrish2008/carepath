@@ -1,12 +1,61 @@
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  updateProfile as firebaseUpdateProfile,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { UserProfile, StoredUserAccount } from '../../types';
 import { storage } from '../database/storage';
 import { getOrCreatePatientJourney } from '../journey/journeyTracker';
+import {
+  getFirebaseAuth,
+  getFirebaseFirestore,
+  getFirebaseConfigStatus,
+  type FirebaseConfigStatus,
+} from '../firebase/firebaseConfig';
 
 const STORAGE_ACCOUNTS_KEY = 'carepath_auth_user_accounts';
 const STORAGE_SESSION_KEY = 'carepath_auth_active_session';
 
 /**
- * Utility: Generates a cryptographically strong random salt
+ * Maps standard Firebase Authentication error codes to patient-friendly explanations.
+ */
+export function mapFirebaseAuthError(error: unknown): string {
+  if (!error) return 'An unexpected authentication error occurred.';
+  const code = (error as { code?: string })?.code || '';
+
+  switch (code) {
+    case 'auth/invalid-email':
+      return 'The email address is invalid. Please check the spelling and try again.';
+    case 'auth/user-not-found':
+      return 'No account was found with this email address. Please verify or create an account.';
+    case 'auth/wrong-password':
+      return 'Incorrect password. Please verify your credentials or use password reset.';
+    case 'auth/invalid-credential':
+      return 'Invalid email or password. Please verify your credentials.';
+    case 'auth/email-already-in-use':
+      return 'An account with this email address already exists. Please sign in or reset your password.';
+    case 'auth/weak-password':
+      return 'The password is too weak. Please use at least 6 characters.';
+    case 'auth/too-many-requests':
+      return 'Access to this account has been temporarily disabled due to multiple failed login attempts. Please try again later or reset your password.';
+    case 'auth/user-disabled':
+      return 'This user account has been disabled by an administrator.';
+    case 'auth/operation-not-allowed':
+      return 'Email/Password sign-in is not enabled in Firebase Console. Please enable the Email/Password sign-in method under Authentication.';
+    case 'auth/network-request-failed':
+      return 'Network connection error while contacting Firebase Authentication. Please check your connectivity.';
+    default:
+      return (error as { message?: string })?.message || 'Authentication operation failed.';
+  }
+}
+
+/**
+ * Utility: Generates a cryptographically strong random salt for demo offline accounts
  */
 function generateSalt(): string {
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
@@ -18,7 +67,7 @@ function generateSalt(): string {
 }
 
 /**
- * Utility: Hashes a password + salt using SHA-256 via Web Crypto API
+ * Utility: Hashes a password + salt for offline evaluation mode
  */
 async function hashPassword(password: string, salt: string): Promise<string> {
   const message = `${salt}:${password}`;
@@ -29,7 +78,6 @@ async function hashPassword(password: string, salt: string): Promise<string> {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   }
-  // Fallback string hash for headless test environments without crypto.subtle
   let hash = 0;
   for (let i = 0; i < message.length; i++) {
     hash = (hash << 5) - hash + message.charCodeAt(i);
@@ -40,6 +88,7 @@ async function hashPassword(password: string, salt: string): Promise<string> {
 
 export class AuthService {
   private static instance: AuthService;
+  private unsubscribeAuthListener: (() => void) | null = null;
 
   public static getInstance(): AuthService {
     if (!AuthService.instance) {
@@ -47,6 +96,14 @@ export class AuthService {
       AuthService.instance.ensureDefaultAccounts();
     }
     return AuthService.instance;
+  }
+
+  public getConfigStatus(): FirebaseConfigStatus {
+    return getFirebaseConfigStatus();
+  }
+
+  public isFirebaseLive(): boolean {
+    return getFirebaseConfigStatus().isConfigured;
   }
 
   private getAccounts(): StoredUserAccount[] {
@@ -72,7 +129,7 @@ export class AuthService {
   }
 
   /**
-   * Seeds demo patient and administrator accounts with hashed credentials
+   * Seeds demo patient and administrator accounts for evaluation mode
    */
   public async ensureDefaultAccounts(): Promise<void> {
     const existing = this.getAccounts();
@@ -135,8 +192,13 @@ export class AuthService {
     }
   }
 
-  public async signIn(email: string, password: string): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
-    await this.ensureDefaultAccounts();
+  /**
+   * Genuine Firebase Authentication Sign In with offline evaluation fallback
+   */
+  public async signIn(
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
     const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail || !cleanEmail.includes('@')) {
@@ -147,6 +209,25 @@ export class AuthService {
       return { success: false, error: 'Password is required.' };
     }
 
+    const firebaseAuth = getFirebaseAuth();
+
+    // 1. LIVE FIREBASE AUTHENTICATION MODE
+    if (firebaseAuth) {
+      try {
+        const userCredential = await signInWithEmailAndPassword(firebaseAuth, cleanEmail, password);
+        const fbUser = userCredential.user;
+
+        // Fetch or hydrate user profile from Cloud Firestore
+        const profile = await this.fetchOrCreateFirestoreProfile(fbUser);
+        this.setSession(profile);
+        return { success: true, user: profile };
+      } catch (err: unknown) {
+        return { success: false, error: mapFirebaseAuthError(err) };
+      }
+    }
+
+    // 2. OFFLINE EVALUATION / DEMO FALLBACK MODE
+    await this.ensureDefaultAccounts();
     const accounts = this.getAccounts();
     const account = accounts.find((a) => a.user.email.toLowerCase() === cleanEmail);
 
@@ -159,11 +240,13 @@ export class AuthService {
       return { success: false, error: 'Invalid password. Please verify your credentials or reset your password.' };
     }
 
-    // Set persistent session
     this.setSession(account.user);
     return { success: true, user: account.user };
   }
 
+  /**
+   * Genuine Firebase Authentication Sign Up with offline evaluation fallback
+   */
   public async signUp(params: {
     name: string;
     email: string;
@@ -173,7 +256,6 @@ export class AuthService {
     preferredService?: string;
     wheelchair?: boolean;
   }): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
-    await this.ensureDefaultAccounts();
     const cleanEmail = params.email.trim().toLowerCase();
     const cleanName = params.name.trim();
 
@@ -189,6 +271,61 @@ export class AuthService {
       return { success: false, error: 'Password must be at least 6 characters long.' };
     }
 
+    const firebaseAuth = getFirebaseAuth();
+
+    // 1. LIVE FIREBASE AUTHENTICATION MODE
+    if (firebaseAuth) {
+      try {
+        const userCredential = await createUserWithEmailAndPassword(firebaseAuth, cleanEmail, params.password);
+        const fbUser = userCredential.user;
+
+        try {
+          await firebaseUpdateProfile(fbUser, { displayName: cleanName });
+        } catch {
+          // ignore display name update warning
+        }
+
+        const newUser: UserProfile = {
+          id: fbUser.uid,
+          email: cleanEmail,
+          name: cleanName,
+          role: 'patient',
+          phone: params.phone || '+91 98765 00000',
+          location: params.location || 'Metro City',
+          preferredLanguage: 'en',
+          accessibilityNeeds: {
+            wheelchair: Boolean(params.wheelchair),
+            audioAssistance: false,
+            signLanguage: false,
+            lowVision: false,
+          },
+          preferredService: params.preferredService || 'General Practice',
+          referralStatus: 'unknown',
+          createdAt: new Date().toISOString(),
+        };
+
+        // Persist to Cloud Firestore under users/{uid}
+        const db = getFirebaseFirestore();
+        if (db) {
+          try {
+            await setDoc(doc(db, 'users', fbUser.uid), newUser);
+          } catch (dbErr) {
+            console.warn('Could not write user profile to Firestore (check rules):', dbErr);
+          }
+        }
+
+        storage.saveUser(newUser);
+        getOrCreatePatientJourney(newUser.id);
+        this.setSession(newUser);
+
+        return { success: true, user: newUser };
+      } catch (err: unknown) {
+        return { success: false, error: mapFirebaseAuthError(err) };
+      }
+    }
+
+    // 2. OFFLINE EVALUATION / DEMO FALLBACK MODE
+    await this.ensureDefaultAccounts();
     const accounts = this.getAccounts();
     const existing = accounts.find((a) => a.user.email.toLowerCase() === cleanEmail);
     if (existing) {
@@ -227,15 +364,40 @@ export class AuthService {
     this.saveAccounts(accounts);
     storage.saveUser(newUser);
 
-    // Initialize clean patient journey for the new patient
     getOrCreatePatientJourney(newUser.id);
-
     this.setSession(newUser);
     return { success: true, user: newUser };
   }
 
-  public async requestPasswordReset(email: string): Promise<{ success: boolean; token?: string; error?: string; instructions?: string }> {
+  /**
+   * Password reset: Genuine Firebase sendPasswordResetEmail in live mode, or token in demo mode
+   */
+  public async requestPasswordReset(
+    email: string
+  ): Promise<{ success: boolean; token?: string; error?: string; instructions?: string }> {
     const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, error: 'Please enter a valid email address.' };
+    }
+
+    const firebaseAuth = getFirebaseAuth();
+
+    // 1. LIVE FIREBASE AUTHENTICATION MODE
+    if (firebaseAuth) {
+      try {
+        await sendPasswordResetEmail(firebaseAuth, cleanEmail);
+        return {
+          success: true,
+          instructions:
+            'A secure password reset link has been dispatched to your email address by Firebase Authentication. Please check your inbox and follow the instructions to set your new password.',
+        };
+      } catch (err: unknown) {
+        return { success: false, error: mapFirebaseAuthError(err) };
+      }
+    }
+
+    // 2. OFFLINE EVALUATION / DEMO FALLBACK MODE
     const accounts = this.getAccounts();
     const account = accounts.find((a) => a.user.email.toLowerCase() === cleanEmail);
 
@@ -245,18 +407,24 @@ export class AuthService {
 
     const token = 'CP-RESET-' + Math.random().toString(36).substring(2, 8).toUpperCase();
     account.resetToken = token;
-    account.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour validity
+    account.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
     this.saveAccounts(accounts);
 
     return {
       success: true,
       token,
-      instructions: `Password reset token generated: ${token}. In this demo environment, you may now set a new password.`,
+      instructions: `Evaluation Mode: In live deployment with Firebase, a secure reset email is dispatched. In this offline evaluation mode, token ${token} was generated locally. You may now set a new password.`,
     };
   }
 
-  public async confirmPasswordReset(token: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+  /**
+   * Confirms password reset in demo mode (live Firebase handles this via email action link)
+   */
+  public async confirmPasswordReset(
+    token: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> {
     if (!token || !token.trim()) {
       return { success: false, error: 'Reset token is required.' };
     }
@@ -288,7 +456,16 @@ export class AuthService {
     return { success: true };
   }
 
-  public signOut(): void {
+  public async signOut(): Promise<void> {
+    const firebaseAuth = getFirebaseAuth();
+    if (firebaseAuth) {
+      try {
+        await firebaseSignOut(firebaseAuth);
+      } catch {
+        // ignore
+      }
+    }
+
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem(STORAGE_SESSION_KEY);
@@ -318,6 +495,95 @@ export class AuthService {
     } catch {
       // ignore
     }
+  }
+
+  /**
+   * Helper: Fetches user profile from Firestore or creates it from Firebase user record
+   */
+  private async fetchOrCreateFirestoreProfile(fbUser: FirebaseUser): Promise<UserProfile> {
+    const db = getFirebaseFirestore();
+    if (db) {
+      try {
+        const userDocRef = doc(db, 'users', fbUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const profile = userDocSnap.data() as UserProfile;
+          storage.saveUser(profile);
+          return profile;
+        }
+      } catch (err) {
+        console.warn('Could not read user profile from Firestore:', err);
+      }
+    }
+
+    // Check local storage fallback
+    const localUser = storage.getUserById(fbUser.uid);
+    if (localUser) return localUser;
+
+    // Create minimal profile from Firebase user info
+    const isAlex = fbUser.email === 'patient@carepath.example';
+    const isAdmin = fbUser.email === 'admin@carepath.example';
+
+    const newProfile: UserProfile = {
+      id: fbUser.uid,
+      email: fbUser.email || 'patient@carepath.example',
+      name: fbUser.displayName || (isAdmin ? 'Dr. Sarah Chen' : isAlex ? 'Alex Rivera' : 'CarePath Patient'),
+      role: isAdmin ? 'admin' : 'patient',
+      phone: fbUser.phoneNumber || '+91 98765 00000',
+      location: 'Metro City',
+      preferredLanguage: 'en',
+      accessibilityNeeds: {
+        wheelchair: isAlex,
+        audioAssistance: false,
+        signLanguage: false,
+        lowVision: false,
+      },
+      preferredService: isAdmin ? 'System Administration' : 'Cardiology',
+      referralStatus: 'unknown',
+      createdAt: new Date().toISOString(),
+    };
+
+    if (db) {
+      try {
+        await setDoc(doc(db, 'users', fbUser.uid), newProfile);
+      } catch {
+        // ignore
+      }
+    }
+
+    storage.saveUser(newProfile);
+    return newProfile;
+  }
+
+  /**
+   * Listens to live Firebase Auth state transitions
+   */
+  public subscribeToAuthState(callback: (user: UserProfile | null) => void): () => void {
+    const firebaseAuth = getFirebaseAuth();
+    if (!firebaseAuth) {
+      return () => {};
+    }
+
+    if (this.unsubscribeAuthListener) {
+      this.unsubscribeAuthListener();
+    }
+
+    this.unsubscribeAuthListener = onAuthStateChanged(firebaseAuth, async (fbUser) => {
+      if (fbUser) {
+        const profile = await this.fetchOrCreateFirestoreProfile(fbUser);
+        this.setSession(profile);
+        callback(profile);
+      } else {
+        callback(null);
+      }
+    });
+
+    return () => {
+      if (this.unsubscribeAuthListener) {
+        this.unsubscribeAuthListener();
+        this.unsubscribeAuthListener = null;
+      }
+    };
   }
 }
 

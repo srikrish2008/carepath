@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Clock, Upload, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Clock, Upload, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
@@ -57,6 +57,17 @@ export const DocumentsPage: React.FC<DocumentsPageProps> = ({ onNavigateAppointm
             View Active Appointment
           </Button>
         )}
+      </div>
+
+      {/* Privacy & Storage Transparency Notice */}
+      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 text-xs flex items-start gap-3">
+        <ShieldCheck className="w-4 h-4 text-brand-600 flex-shrink-0 mt-0.5" />
+        <div className="space-y-0.5 leading-relaxed">
+          <div className="font-semibold text-slate-900">Document Privacy Notice</div>
+          <p className="text-slate-600">
+            In this demonstration environment, binary files are processed for session preview only and are never uploaded or stored in permanent cloud storage. Only validated document metadata (file name, format, status) is recorded.
+          </p>
+        </div>
       </div>
 
       {/* Progress Banner */}

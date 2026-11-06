@@ -2,11 +2,14 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { UserProfile, UserRole, Language } from '../types';
 import { storage } from '../services/database/storage';
 import { authService } from '../services/auth/authService';
+import type { FirebaseConfigStatus } from '../services/firebase/firebaseConfig';
 
 export interface AuthContextType {
   user: UserProfile | null;
   role: UserRole;
   isAuthenticated: boolean;
+  isFirebaseLive: boolean;
+  firebaseStatus: FirebaseConfigStatus;
   loginAsDemo: (role: UserRole) => Promise<void>;
   loginWithPassword: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   registerWithPassword: (data: {
@@ -85,6 +88,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return null;
   });
+
+  useEffect(() => {
+    // Listen to live Firebase Auth state transitions
+    const unsubscribe = authService.subscribeToAuthState((firebaseProfile) => {
+      if (firebaseProfile) {
+        setUser(firebaseProfile);
+      }
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -215,12 +230,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     storage.saveUser(updated);
   };
 
+  const firebaseStatus = authService.getConfigStatus();
+  const isFirebaseLive = authService.isFirebaseLive();
+
   return (
     <AuthContext.Provider
       value={{
         user,
         role: user?.role || 'patient',
         isAuthenticated: !!user,
+        isFirebaseLive,
+        firebaseStatus,
         loginAsDemo,
         loginWithPassword,
         registerWithPassword,
@@ -244,6 +264,12 @@ export const useAuth = (): AuthContextType => {
       user: null,
       role: 'patient',
       isAuthenticated: false,
+      isFirebaseLive: false,
+      firebaseStatus: {
+        isConfigured: false,
+        missingKeys: ['VITE_FIREBASE_API_KEY'],
+        mode: 'offline_demo',
+      },
       loginAsDemo: async () => {},
       loginWithPassword: async () => ({ success: false, error: 'No auth context' }),
       registerWithPassword: async () => ({ success: false, error: 'No auth context' }),
