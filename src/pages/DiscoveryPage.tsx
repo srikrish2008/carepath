@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, HelpCircle } from 'lucide-react';
+import { Search, HelpCircle, ArrowLeftRight } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
@@ -7,6 +7,7 @@ import { evaluateFacilityFeasibility, type MatchingCriteria } from '../services/
 import { FacilityCard } from '../components/discovery/FacilityCard';
 import { FacilityFilter } from '../components/discovery/FacilityFilter';
 import { BookingModal } from '../components/booking/BookingModal';
+import { FacilityComparisonModal } from '../components/discovery/FacilityComparisonModal';
 import { Button } from '../components/common/Button';
 import type { Facility, AppointmentSlot } from '../types';
 
@@ -32,8 +33,13 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
   });
 
   const [comparedIds, setComparedIds] = useState<string[]>([]);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [bookingSlot, setBookingSlot] = useState<AppointmentSlot | null>(null);
   const [bookingFacility, setBookingFacility] = useState<Facility | null>(null);
+
+  const comparedFacilities = useMemo(() => {
+    return facilities.filter((f) => comparedIds.includes(f.id));
+  }, [facilities, comparedIds]);
 
   // Extract all distinct specialties across facilities
   const allSpecialties = useMemo(() => {
@@ -81,6 +87,15 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
     setComparedIds((prev) =>
       prev.includes(facilityId) ? prev.filter((id) => id !== facilityId) : [...prev, facilityId]
     );
+  };
+
+  const handleRemoveCompare = (facilityId: string) => {
+    setComparedIds((prev) => prev.filter((id) => id !== facilityId));
+  };
+
+  const handleClearCompare = () => {
+    setComparedIds([]);
+    setIsCompareModalOpen(false);
   };
 
   return (
@@ -132,9 +147,24 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
               <strong>{evaluatedFacilities.length}</strong> {t.discovery.resultsCount}
             </span>
             {comparedIds.length > 0 && (
-              <span className="text-brand-600 font-semibold">
-                {comparedIds.length} facilities selected for comparison
-              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setIsCompareModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 shadow-xs font-semibold text-xs px-3 py-1.5"
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  <span>Compare ({comparedIds.length})</span>
+                </Button>
+                <button
+                  type="button"
+                  onClick={handleClearCompare}
+                  className="text-xs text-slate-400 hover:text-slate-600 underline font-medium"
+                >
+                  Clear
+                </button>
+              </div>
             )}
           </div>
 
@@ -175,6 +205,53 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           )}
         </div>
       </div>
+
+      {/* Floating Sticky Comparison Bar when facilities are selected */}
+      {comparedIds.length > 0 && (
+        <aside
+          aria-label="Comparison dock"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 max-w-xl w-[92%] sm:w-auto animate-in slide-in-from-bottom duration-200"
+        >
+          <div className="flex items-center gap-2.5 text-xs">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 font-bold text-white text-xs">
+              {comparedIds.length}
+            </span>
+            <span className="font-medium text-slate-200">
+              {comparedIds.length === 1 ? '1 facility selected' : `${comparedIds.length} facilities selected for comparison`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setIsCompareModalOpen(true)}
+              className="bg-brand-500 hover:bg-brand-400 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm"
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5" />
+              <span>Compare Now</span>
+            </Button>
+            <button
+              type="button"
+              onClick={handleClearCompare}
+              className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Facility Comparison Modal */}
+      <FacilityComparisonModal
+        isOpen={isCompareModalOpen}
+        onClose={() => setIsCompareModalOpen(false)}
+        facilities={comparedFacilities}
+        onRemoveFacility={handleRemoveCompare}
+        onClearAll={handleClearCompare}
+        onSelectFacility={onNavigateFacilityDetail}
+        onBookFacility={handleBookFromCard}
+      />
 
       {/* Booking Modal */}
       <BookingModal
