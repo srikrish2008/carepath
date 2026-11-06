@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { ShieldCheck, AlertTriangle, CheckCircle2, UserCheck } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, CheckCircle2, UserCheck, Scale } from 'lucide-react';
 import type { FacilityConflict } from '../../types';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { resolveConflictWithHumanVerification } from '../../services/conflict/reconciliationEngine';
+import { resolveConflictWithHumanVerification, evaluateFreshness } from '../../services/conflict/reconciliationEngine';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../context/AppDataContext';
 
@@ -57,10 +57,39 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
       isOpen={isOpen}
       onClose={onClose}
       title="C02 Source Conflict Resolution &amp; Audit"
-      description={`Discrepancy detected for ${conflict.fieldName} on facility ${conflict.facilityId}`}
-      maxWidth="lg"
+      description={`Discrepancy detected for field "${conflict.fieldName}" on facility ${conflict.facilityId}`}
+      maxWidth="3xl"
     >
       <div className="space-y-4">
+        {/* Judge 30-Second Explainer Architecture Banner */}
+        <div className="p-3.5 rounded-xl bg-slate-900 text-white text-xs space-y-2 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Scale className="w-4 h-4 text-teal-400" />
+              <span className="font-bold text-teal-300 font-mono text-[11px] uppercase tracking-wider">
+                Constraint C02 — 30-Second Reconciliation Architecture
+              </span>
+            </div>
+            <span className="text-[10px] text-slate-400 font-mono">
+              Score = Authority &times; Freshness Decay
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] pt-0.5">
+            <div className="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700">
+              <div className="font-semibold text-teal-300">1. Ingest Sources</div>
+              <div className="text-slate-400 text-[10px] mt-0.5">Captures contradictory assertions &amp; timestamps</div>
+            </div>
+            <div className="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700">
+              <div className="font-semibold text-teal-300">2. Weight &amp; Penalize</div>
+              <div className="text-slate-400 text-[10px] mt-0.5">Applies authority weighting &amp; stale decay penalty</div>
+            </div>
+            <div className="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700">
+              <div className="font-semibold text-teal-300">3. Deterministic Gate</div>
+              <div className="text-slate-400 text-[10px] mt-0.5">&Delta; &ge; 20 Auto-Resolves; &Delta; &lt; 20 Requires Human Audit</div>
+            </div>
+          </div>
+        </div>
+
         {successMsg && (
           <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -91,7 +120,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
               <span>Automatically Reconciled Record (Authority-Freshness Algorithm)</span>
             </div>
             <div className="text-sky-950 text-[11px] leading-relaxed pt-0.5">
-              Resolved algorithmically via high-authority primary sources ($\Delta \ge 20$). No human override has been applied.
+              Resolved algorithmically via high-authority primary sources (&Delta; &ge; 20). No human override has been applied.
             </div>
             <div className="text-sky-900 text-[11px] bg-white/70 p-2 rounded border border-sky-200 mt-1">
               {conflict.resolutionExplanation}
@@ -104,53 +133,125 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
               <span>Unresolved Contradiction (Pending Human Verification)</span>
             </div>
             <div className="text-amber-950 text-[11px] leading-relaxed pt-0.5">
-              Score margin between conflicting sources is too close ($\Delta &lt; 20$) or sources are equally authoritative. The system strictly refuses to guess without authorized human audit.
+              Score margin between conflicting sources is too close (&Delta; &lt; 20) or sources are equally authoritative. The system strictly refuses to guess without authorized human audit.
             </div>
           </div>
         )}
 
-        {/* Conflicting Source Records Table */}
+        {/* Side-by-Side Conflicting Source Assertions */}
         <div>
-          <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
-            Primary Source Assertions
-          </h4>
-          <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-100 text-xs">
-            {conflict.conflictingValues.map((src, i) => (
-              <div key={i} className="p-3 bg-white flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="font-semibold text-slate-900 flex items-center gap-2">
-                    <span>{src.sourceName}</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                      Authority: {src.authority}/100
-                    </span>
-                    {src.isStale && (
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200 font-semibold">
-                        Stale Record
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Side-by-Side Source Assertions &amp; Computed Trust
+            </h4>
+            <span className="text-[11px] text-slate-500 font-mono">
+              Field: <strong className="text-slate-800">{conflict.fieldName}</strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {conflict.conflictingValues.map((src, i) => {
+              const fresh = evaluateFreshness(src.lastUpdatedAt);
+              const finalScore = Math.round(src.authority * fresh.factor);
+              const isAccepted = conflict.status === 'resolved_automatic' && conflict.authoritativeValue === src.value;
+              const isHumanAccepted = conflict.status === 'resolved_human' && conflict.authoritativeValue === src.value;
+              const isRejected = (conflict.status === 'resolved_automatic' || conflict.status === 'resolved_human') && conflict.authoritativeValue !== src.value;
+              const isUnresolved = conflict.status === 'unresolved' || conflict.status === 'pending_verification';
+
+              return (
+                <div
+                  key={i}
+                  className={`p-4 rounded-xl border transition-all text-xs space-y-3 ${
+                    isAccepted || isHumanAccepted
+                      ? 'bg-emerald-50/30 border-emerald-300 ring-1 ring-emerald-300 shadow-xs'
+                      : isRejected
+                      ? 'bg-slate-50/70 border-slate-200 opacity-75'
+                      : 'bg-white border-amber-200 shadow-xs'
+                  }`}
+                >
+                  {/* Source Header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-[10px] uppercase font-bold text-slate-400">
+                        Source {String.fromCharCode(65 + i)}
+                      </div>
+                      <h5 className="font-bold text-slate-900 text-sm mt-0.5">{src.sourceName}</h5>
+                      <span className="inline-block mt-0.5 text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        {src.sourceType}
                       </span>
+                    </div>
+
+                    {/* Source Status Pill */}
+                    <div>
+                      {isAccepted && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Accepted
+                        </span>
+                      )}
+                      {isHumanAccepted && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
+                          <UserCheck className="w-3 h-3 text-emerald-600" />
+                          Human-Verified
+                        </span>
+                      )}
+                      {isRejected && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                          Rejected
+                        </span>
+                      )}
+                      {isUnresolved && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 inline-flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3 text-amber-600" />
+                          Conflicting
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Asserted Value */}
+                  <div className="p-2.5 rounded-lg bg-slate-900 text-teal-300 flex items-center justify-between font-mono">
+                    <span className="text-slate-400 text-xs">Asserted Value:</span>
+                    <span className="font-bold text-sm">{String(src.value)}</span>
+                  </div>
+
+                  {/* Computed Trust Score Breakdown */}
+                  <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 rounded-lg text-center text-[11px] border border-slate-100">
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Raw Authority</div>
+                      <div className="font-bold text-slate-800">{src.authority} / 100</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Freshness Factor</div>
+                      <div className="font-bold text-slate-800">
+                        &times; {fresh.factor} {fresh.isStale ? '(Stale)' : ''}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">Final Trust</div>
+                      <div className="font-bold text-brand-700">{finalScore} pts</div>
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-100">
+                    <span>Updated: {new Date(src.lastUpdatedAt).toLocaleDateString()}</span>
+                    {role === 'admin' && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVal(src.value)}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-colors ${
+                          selectedVal === src.value
+                            ? 'bg-teal-600 text-white shadow-xs font-bold'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                        }`}
+                      >
+                        {selectedVal === src.value ? '✓ Selected' : 'Choose this value'}
+                      </button>
                     )}
                   </div>
-                  <div className="text-slate-500 text-[11px]">
-                    Last Updated: {new Date(src.lastUpdatedAt).toLocaleDateString()} • Type: {src.sourceType}
-                  </div>
                 </div>
-
-                <div className="text-right flex flex-col items-end">
-                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800">
-                    Value: {String(src.value)}
-                  </span>
-                  {role === 'admin' && (
-                    <button
-                      onClick={() => setSelectedVal(src.value)}
-                      className={`mt-1.5 text-[11px] font-semibold underline ${
-                        selectedVal === src.value ? 'text-teal-700 font-bold' : 'text-brand-600'
-                      }`}
-                    >
-                      {selectedVal === src.value ? 'Selected' : 'Choose this value'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

@@ -19,5 +19,12 @@ export function sanitizeAndValidateFilename(rawName: string): { valid: boolean; 
   if (parts.length < 2 || !parts[parts.length - 1]) {
     return { valid: false, sanitized: clean, error: 'File must have a valid extension.' };
   }
+
+  const DANGEROUS_EXTENSIONS = ['exe', 'bat', 'cmd', 'sh', 'ps1', 'msi', 'com', 'scr', 'vbs', 'js', 'py'];
+  const ext = parts[parts.length - 1].toLowerCase();
+  if (DANGEROUS_EXTENSIONS.includes(ext)) {
+    return { valid: false, sanitized: clean, error: 'Disallowed file extension: Executable and script files are prohibited.' };
+  }
+
   return { valid: true, sanitized: clean };
 }

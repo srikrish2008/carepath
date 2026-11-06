@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, HelpCircle, ArrowLeftRight } from 'lucide-react';
+import { Search, HelpCircle, ArrowLeftRight, X } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
@@ -98,6 +98,26 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
     setIsCompareModalOpen(false);
   };
 
+  const handleClearAllFilters = () => {
+    setSearchQuery('');
+    setCriteria({
+      requiredSpecialty: undefined,
+      wheelchairRequired: false,
+      requireNoReferral: false,
+      requireAvailableSlots: false,
+      preferredLanguage: undefined,
+    });
+  };
+
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() ||
+      criteria.requiredSpecialty ||
+      criteria.wheelchairRequired ||
+      criteria.requireNoReferral ||
+      criteria.requireAvailableSlots ||
+      criteria.preferredLanguage
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -167,6 +187,105 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
               </div>
             )}
           </div>
+
+          {/* Removable Active Filter Chips */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-1.5 py-1">
+              <span className="text-[11px] text-slate-400 font-medium mr-1">Active filters:</span>
+
+              {searchQuery.trim() && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-slate-100 text-slate-800 border border-slate-200">
+                  <span>Search: &ldquo;{searchQuery}&rdquo;</span>
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="p-0.5 hover:text-rose-600 rounded-full"
+                    aria-label="Remove search filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {criteria.requiredSpecialty && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-brand-50 text-brand-800 border border-brand-200">
+                  <span>Specialty: {criteria.requiredSpecialty}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCriteria((prev) => ({ ...prev, requiredSpecialty: undefined }))}
+                    className="p-0.5 hover:text-rose-600 rounded-full"
+                    aria-label="Remove specialty filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {criteria.wheelchairRequired && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-teal-50 text-teal-800 border border-teal-200">
+                  <span>Wheelchair Accessible</span>
+                  <button
+                    type="button"
+                    onClick={() => setCriteria((prev) => ({ ...prev, wheelchairRequired: false }))}
+                    className="p-0.5 hover:text-rose-600 rounded-full"
+                    aria-label="Remove wheelchair filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {criteria.requireNoReferral && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-teal-50 text-teal-800 border border-teal-200">
+                  <span>No Referral Required</span>
+                  <button
+                    type="button"
+                    onClick={() => setCriteria((prev) => ({ ...prev, requireNoReferral: false }))}
+                    className="p-0.5 hover:text-rose-600 rounded-full"
+                    aria-label="Remove referral filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {criteria.requireAvailableSlots && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <span>Available Slots Only</span>
+                  <button
+                    type="button"
+                    onClick={() => setCriteria((prev) => ({ ...prev, requireAvailableSlots: false }))}
+                    className="p-0.5 hover:text-rose-600 rounded-full"
+                    aria-label="Remove available slots filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              {criteria.preferredLanguage && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-indigo-50 text-indigo-800 border border-indigo-200">
+                  <span>Language: {criteria.preferredLanguage.toUpperCase()}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCriteria((prev) => ({ ...prev, preferredLanguage: undefined }))}
+                    className="p-0.5 hover:text-rose-600 rounded-full"
+                    aria-label="Remove language filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={handleClearAllFilters}
+                className="text-xs text-rose-600 hover:text-rose-700 underline font-medium ml-1"
+              >
+                Clear all filters
+              </button>
+            </div>
+          )}
 
           {evaluatedFacilities.length === 0 ? (
             <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-3">

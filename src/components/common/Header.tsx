@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
 import {
-  Globe,
   Bell,
   Shield,
   User,
-  FlaskConical,
   Check,
+  FlaskConical,
   ExternalLink,
   ChevronDown,
+  Menu,
+  X,
+  LayoutDashboard,
+  Search,
+  CalendarCheck,
+  FileText,
+  Milestone,
+  Bot,
+  ShieldAlert,
 } from 'lucide-react';
 import { useI18n } from '../../i18n';
 import { useAuth } from '../../context/AuthContext';
@@ -25,6 +33,18 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
   const { notifications, refreshData } = useAppData();
   const [showNotifs, setShowNotifs] = useState(false);
   const [showDemoMenu, setShowDemoMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const mobileNavItems = [
+    { id: 'dashboard', label: t.nav.overview, icon: LayoutDashboard },
+    { id: 'discovery', label: t.nav.findCare, icon: Search },
+    { id: 'appointments', label: t.nav.appointments, icon: CalendarCheck },
+    { id: 'documents', label: t.nav.documents, icon: FileText },
+    { id: 'journey', label: t.nav.journey, icon: Milestone },
+    { id: 'ai', label: t.nav.aiAssistant, icon: Bot },
+    { id: 'notifications', label: t.nav.notifications, icon: Bell },
+    { id: 'admin', label: t.nav.adminConsole, icon: ShieldAlert, badge: 'C02 / C09' },
+  ];
 
   const unreadNotifs = notifications.filter((n) => !n.read);
 
@@ -218,8 +238,59 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
               {user?.name?.charAt(0) || 'U'}
             </div>
           </div>
+
+          {/* Mobile Hamburger Menu Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-center min-w-[44px] min-h-[44px]"
+            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5 text-slate-900" /> : <Menu className="w-5 h-5 text-slate-700" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <nav
+          aria-label="Mobile navigation"
+          className="md:hidden border-t border-slate-200 bg-white/95 backdrop-blur-md px-4 py-3 shadow-xl animate-in slide-in-from-top-2 duration-150 space-y-1 max-h-[80vh] overflow-y-auto"
+        >
+          <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider px-3 py-1">
+            CarePath Navigation
+          </div>
+          {mobileNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  onNavigate(item.id);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium min-h-[44px] transition-colors ${
+                  isActive
+                    ? 'bg-brand-50 text-brand-700 font-semibold'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-brand-600' : 'text-slate-500'}`} />
+                  <span>{item.label}</span>
+                </div>
+                {item.badge && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      )}
     </header>
   );
 };

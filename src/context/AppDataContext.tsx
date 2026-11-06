@@ -64,6 +64,33 @@ export const AppDataProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshData();
   }, [currentUserId, refreshData]);
 
+  useEffect(() => {
+    // Cross-tab synchronization via BroadcastChannel & storage events
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('carepath_c09_sync_channel');
+        channel.onmessage = () => {
+          refreshData();
+        };
+        return () => {
+          try {
+            channel.close();
+          } catch {
+            // ignore
+          }
+        };
+      } catch {
+        // ignore
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      const handleStorage = () => refreshData();
+      window.addEventListener('storage', handleStorage);
+      return () => window.removeEventListener('storage', handleStorage);
+    }
+  }, [refreshData]);
+
   const resetSyntheticData = () => {
     storage.initIfEmpty(true);
     refreshData();

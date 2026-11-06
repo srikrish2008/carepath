@@ -66,14 +66,48 @@ class Mutex {
 }
 
 /**
- * Cross-tab mutual exclusion lock for multi-tab prototype synchronization
+ * Same-origin multi-tab coordination using Web Locks API with mutex lease fallback.
+ * NOTE: localStorage storage event is not an atomic transaction mechanism.
  */
 class CrossTabMutex {
   private memoryMutex = new Mutex();
   private leaseDurationMs = 2500;
+  private lockName = 'carepath_c09_booking_lock';
 
   async acquire(): Promise<() => void> {
     const releaseMemory = await this.memoryMutex.acquire();
+
+    // Check if Web Locks API is available (modern browser same-origin tabs)
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.locks &&
+      typeof navigator.locks.request === 'function'
+    ) {
+      let releaseWebLock: () => void = () => {};
+      const lockAcquired = new Promise<void>((resolve) => {
+        navigator.locks.request(this.lockName, () => {
+          return new Promise<void>((release) => {
+            releaseWebLock = release;
+            resolve();
+          });
+        });
+      });
+
+      const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2500));
+      await Promise.race([lockAcquired, timeout]);
+
+      return () => {
+        try {
+          releaseWebLock();
+        } catch {
+          // ignore
+        } finally {
+          releaseMemory();
+        }
+      };
+    }
+
+    // Fallback: Lease-based localStorage synchronization for environments without navigator.locks
     const token = 'lock_' + Math.random().toString(36).substring(2, 9);
     const startTime = Date.now();
 
@@ -168,10 +202,28 @@ export class PersistentStorageEngine {
   private static instance: PersistentStorageEngine;
   private transactionMutex = new CrossTabMutex();
   private memoryCache: Map<string, string> = new Map();
+  private broadcastChannel: BroadcastChannel | null = null;
 
   private constructor() {
     this.initIfEmpty();
     this.setupStorageEventListener();
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        this.broadcastChannel = new BroadcastChannel('carepath_c09_sync_channel');
+      } catch {
+        // BroadcastChannel unavailable
+      }
+    }
+  }
+
+  public notifyTabs(): void {
+    try {
+      if (this.broadcastChannel) {
+        this.broadcastChannel.postMessage({ type: 'SYNC_UPDATE', timestamp: Date.now() });
+      }
+    } catch {
+      // ignore
+    }
   }
 
   public static getInstance(): PersistentStorageEngine {
@@ -242,14 +294,15 @@ export class PersistentStorageEngine {
       isDistributed: false,
       multiTabSafe: true,
       crossMachineSafe: false,
-      storageMechanism: 'WebStorage / In-Memory with Cross-Tab Lease Lock',
+      storageMechanism: 'Web Locks API / WebStorage with Mutual Exclusion Leases',
       description:
-        'Local prototype transactional simulation engine with cross-tab lease synchronization. Not a multi-tenant cloud database.',
+        'Local prototype transactional simulation engine. Multi-tab coordination uses Web Locks API (navigator.locks) and BroadcastChannel cross-tab synchronization.',
       architecturalLimitations: [
-        'Atomic capacity locks are enforced locally across concurrent requests and browser tabs via mutual exclusion leases.',
-        'Concurrency across separate physical machines requires a server-side transactional database (e.g. Google Cloud Firestore or PostgreSQL SERIALIZABLE).',
-        'Firestore security rules (firestore.rules) and backend boundary adapters are provided for production deployment.',
-        'All records are synthetic demonstration entities; no real healthcare systems or private credentials are used.',
+        'Atomic capacity locks are enforced locally across concurrent requests and browser tabs via Web Locks API and mutual exclusion leases.',
+        'A localStorage storage event is not an atomic transaction mechanism and is not used as one.',
+        'Concurrency across separate physical devices and browsers requires a server-side transactional backend (e.g. Google Cloud Firestore transactions or PostgreSQL with SERIALIZABLE isolation).',
+        'Firestore security rules (firestore.rules) and backend transactional boundary adapters are provided in the codebase for production cloud deployment.',
+        'All patient, facility, and booking records are strictly synthetic demo entities; no real healthcare credentials or APIs are used.',
       ],
     };
   }
@@ -521,6 +574,7 @@ export class PersistentStorageEngine {
           targetBooking.cancellationReason = reason || 'Patient requested cancellation';
           targetBooking.updatedAt = new Date().toISOString();
           this.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(bookings));
+          this.notifyTabs();
 
           this.appendAuditLog({
             id: 'audit-' + Math.random().toString(36).substring(2, 9),
@@ -540,11 +594,36 @@ export class PersistentStorageEngine {
       const result = await operation(context);
 
       if (stagedBooking && stagedSlot) {
+        // Re-read latest state from persistent storage immediately before committing
+        const latestSlots = this.getSlots();
+        const currentSlotOnDisk = latestSlots.find(
+          (s) => s.slotId === (stagedSlot as AppointmentSlot).slotId
+        );
+
+        if (!currentSlotOnDisk) {
+          throw new TransactionError(
+            `Target slot ${(stagedSlot as AppointmentSlot).slotId} no longer exists.`,
+            'SLOT_NOT_FOUND'
+          );
+        }
+
+        // Validate capacity strictly against latest committed state
+        if (
+          currentSlotOnDisk.confirmedBookingCount >= currentSlotOnDisk.capacity ||
+          currentSlotOnDisk.slotStatus === 'fully_booked'
+        ) {
+          throw new TransactionError(
+            `Slot ${currentSlotOnDisk.slotId} has reached maximum capacity (${currentSlotOnDisk.capacity}/${currentSlotOnDisk.capacity}).`,
+            'CAPACITY_EXCEEDED'
+          );
+        }
+
         const bookings = this.getBookings();
         bookings.unshift(stagedBooking);
         this.setItem(STORAGE_KEYS.BOOKINGS, JSON.stringify(bookings));
 
         this.updateSlot(stagedSlot);
+        this.notifyTabs();
 
         this.appendAuditLog({
           id: 'audit-' + Math.random().toString(36).substring(2, 9),

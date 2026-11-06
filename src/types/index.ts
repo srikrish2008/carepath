@@ -7,6 +7,7 @@ export interface UserProfile {
   email: string;
   name: string;
   role: UserRole;
+  phone?: string;
   location: string;
   preferredLanguage: Language;
   accessibilityNeeds: {

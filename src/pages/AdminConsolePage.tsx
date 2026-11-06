@@ -5,6 +5,8 @@ import {
   Zap,
   CalendarCheck,
   RotateCcw,
+  Download,
+  Sparkles,
 } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
 import { useI18n } from '../i18n';
@@ -12,12 +14,39 @@ import { SystemMetrics } from '../components/admin/SystemMetrics';
 import { ConcurrencyLab } from '../components/admin/ConcurrencyLab';
 import { ConflictLab } from '../components/admin/ConflictLab';
 import { Button } from '../components/common/Button';
+import { storage } from '../services/database/storage';
 
 export const AdminConsolePage: React.FC = () => {
   const { bookings, resetSyntheticData } = useAppData();
   const { t } = useI18n();
 
   const [activeTab, setActiveTab] = useState<'metrics' | 'concurrency' | 'conflicts' | 'bookings'>('concurrency');
+
+  const handleExportAuditLogs = () => {
+    const rawLogs = storage.getAuditLogs();
+    // Sanitize logs so sensitive personal data is protected in audit export
+    const sanitizedLogs = rawLogs.map((log) => {
+      const sanitizedDetails = { ...log.details };
+      if (sanitizedDetails.patientEmail) {
+        sanitizedDetails.patientEmail = '[REDACTED_EMAIL]';
+      }
+      return {
+        ...log,
+        details: sanitizedDetails,
+        syntheticDemoAudit: true,
+      };
+    });
+
+    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+      JSON.stringify(sanitizedLogs, null, 2)
+    )}`;
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', jsonString);
+    downloadAnchor.setAttribute('download', `carepath_audit_log_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
 
   const tabs = [
     { id: 'concurrency', label: 'C09 Concurrency Lab', icon: Zap, badge: 'Live Race' },
@@ -55,6 +84,66 @@ export const AdminConsolePage: React.FC = () => {
         >
           {t.admin.resetDataBtn}
         </Button>
+      </div>
+
+      {/* Judge Quick Demonstration Controls */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md border border-slate-700 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-teal-400" />
+            <h3 className="text-sm font-bold tracking-tight">Judge Demonstration Quick Controls</h3>
+            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">
+              One-Click Protocol Evaluators
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-400 font-mono">PS3 Hackathon Verification</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setActiveTab('conflicts')}
+            leftIcon={<Scale className="w-4 h-4 text-amber-400" />}
+            className="w-full justify-start text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white min-h-[44px]"
+          >
+            <span>Simulate C02 Conflict</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setActiveTab('concurrency')}
+            leftIcon={<Zap className="w-4 h-4 text-teal-400" />}
+            className="w-full justify-start text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white min-h-[44px]"
+          >
+            <span>Simulate C09 Race</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => {
+              if (window.confirm('Reset all synthetic demo data back to default?')) {
+                resetSyntheticData();
+              }
+            }}
+            leftIcon={<RotateCcw className="w-4 h-4 text-sky-400" />}
+            className="w-full justify-start text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white min-h-[44px]"
+          >
+            <span>Reset Demo Data</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleExportAuditLogs}
+            leftIcon={<Download className="w-4 h-4 text-purple-400" />}
+            className="w-full justify-start text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white min-h-[44px]"
+          >
+            <span>Export Audit Log (JSON)</span>
+          </Button>
+        </div>
       </div>
 
       {/* Tabs Navigation */}

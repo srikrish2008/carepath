@@ -40,6 +40,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
+  const [patientPhone, setPatientPhone] = useState(user?.phone || '+91 98765 43210');
+  const [validationError, setValidationError] = useState('');
   const [errorDetails, setErrorDetails] = useState<{
     message: string;
     alternativeSlots?: AppointmentSlot[];
@@ -52,6 +54,23 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleConfirmBooking = async () => {
     if (!user) return;
+    if (isLoading) return; // Prevent duplicate rapid clicks
+    setValidationError('');
+
+    // 1. Validate phone number
+    const phoneDigits = patientPhone.replace(/\D/g, '');
+    if (phoneDigits.length < 10) {
+      setValidationError('Please enter a valid contact phone number with at least 10 digits.');
+      return;
+    }
+
+    // 2. Validate appointment slot date
+    const slotDateObj = new Date(slot.date);
+    if (isNaN(slotDateObj.getTime())) {
+      setValidationError('Appointment slot contains an invalid date format.');
+      return;
+    }
+
     setIsLoading(true);
     setErrorDetails(null);
 
@@ -216,12 +235,35 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <p className="leading-relaxed">{t.booking.concurrencyNotice}</p>
           </div>
 
-          {/* Patient Details */}
-          <div className="space-y-2 text-xs">
+          {/* Patient Details & Contact Verification */}
+          <div className="space-y-3 text-xs">
             <div>
               <span className="text-slate-500">Booking for: </span>
               <span className="font-semibold text-slate-800">{user?.name}</span> ({user?.email})
             </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Confirmation Phone Number (Required for appointment notices)
+              </label>
+              <input
+                type="tel"
+                value={patientPhone}
+                onChange={(e) => {
+                  setPatientPhone(e.target.value);
+                  if (validationError) setValidationError('');
+                }}
+                placeholder="+91 98765 43210"
+                className="w-full text-xs rounded-lg border-slate-300 py-2 px-3 focus:ring-brand-500 focus:border-brand-500"
+              />
+            </div>
+
+            {validationError && (
+              <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>{validationError}</span>
+              </div>
+            )}
           </div>
 
           <div className="pt-2 flex items-center justify-end gap-2">

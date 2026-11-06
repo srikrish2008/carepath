@@ -98,10 +98,18 @@ export const CarePathAIChat: React.FC<CarePathAIChatProps> = ({ onNavigatePage }
         </div>
       </div>
 
-      {/* Safety Notice Banner */}
-      <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-900 text-xs flex items-center gap-2">
-        <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0" />
-        <span className="text-[11px]">{t.ai.disclaimer}</span>
+      {/* Persistent Clinical Disclaimer & Emergency 112 Banner */}
+      <div className="px-4 py-2.5 bg-amber-50/90 border-b border-amber-200 text-amber-950 text-xs space-y-1">
+        <div className="flex items-center gap-2 font-bold text-amber-900">
+          <ShieldAlert className="w-4 h-4 text-amber-700 flex-shrink-0" />
+          <span>Administrative Navigation Only — Not Clinical Advice</span>
+        </div>
+        <p className="text-[11px] text-amber-900 leading-relaxed">
+          CarePath AI assists strictly with hospital discovery, document checklists, and appointment logistics. It cannot diagnose illnesses, evaluate symptoms, or recommend prescriptions.
+          <strong className="block text-rose-800 font-semibold mt-0.5">
+            🚨 Medical Emergency: If this may be an emergency, contact your local emergency services immediately (Call 112 in India, or your local emergency number).
+          </strong>
+        </p>
       </div>
 
       {/* Conversation Messages */}
