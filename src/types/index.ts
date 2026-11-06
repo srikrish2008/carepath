@@ -145,6 +145,65 @@ export interface Booking {
   updatedAt: string;
   cancellationReason?: string;
   rescheduledFromBookingId?: string;
+  referralReference?: string;
+}
+
+// =============================================================================
+// CONSTRAINT C04: GARBAGE IN, GARBAGE EVERYWHERE DATA QUALITY TYPES
+// =============================================================================
+export interface QuarantinedFacilityRecord {
+  recordId: string;
+  facilityId?: string;
+  facilityName?: string;
+  rawRecord: Record<string, any>;
+  reasons: string[];
+  fieldErrors: Record<string, string>;
+  quarantinedAt: string;
+}
+
+export interface FacilityValidationReport {
+  timestamp: string;
+  totalIngested: number;
+  validCount: number;
+  quarantinedCount: number;
+  validFacilityIds: string[];
+  quarantinedRecords: QuarantinedFacilityRecord[];
+}
+
+// =============================================================================
+// CONSTRAINT C12: THE MISSING PIECE OF INFORMATION TYPES
+// =============================================================================
+export interface MissingRequirementDetail {
+  code: 'REFERRAL_REFERENCE_REQUIRED' | 'CONTACT_PHONE_REQUIRED';
+  title: string;
+  description: string;
+  whyNecessary: string;
+  facilityPolicyNotice: string;
+  inputLabel: string;
+  inputPlaceholder: string;
+  formatHint: string;
+}
+
+export interface MissingRequirementCheck {
+  canProceed: boolean;
+  missingItem?: MissingRequirementDetail;
+  facilityContact?: {
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+  };
+}
+
+// =============================================================================
+// AUTHENTICATION & USER CREDENTIAL TYPES
+// =============================================================================
+export interface StoredUserAccount {
+  user: UserProfile;
+  passwordHash: string;
+  passwordSalt: string;
+  resetToken?: string;
+  resetTokenExpiry?: string;
 }
 
 export type FeasibilityCategory = 'feasible' | 'conditional' | 'not_feasible' | 'requires_verification';

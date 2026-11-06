@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import {
-  Calendar,
-  Clock,
-  ShieldAlert,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
-  Hospital,
+  HelpCircle,
+  FileQuestion,
+  Phone,
+  Mail,
+  MapPin,
 } from 'lucide-react';
-import type { AppointmentSlot, Facility, Booking } from '../../types';
+import type { AppointmentSlot, Facility, Booking, MissingRequirementDetail } from '../../types';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../context/AppDataContext';
 import { bookAppointmentSlot } from '../../services/booking/transactionEngine';
+import { checkBookingPrerequisites, validateReferralCode } from '../../services/booking/requirementChecker';
 import { updateJourneyStageStatus } from '../../services/journey/journeyTracker';
-import { useI18n } from '../../i18n';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -34,14 +35,19 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onBookingSuccess,
   onSelectAlternativeSlot,
 }) => {
-  const { t } = useI18n();
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const { refreshData } = useAppData();
 
   const [isLoading, setIsLoading] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
   const [patientPhone, setPatientPhone] = useState(user?.phone || '+91 98765 43210');
   const [validationError, setValidationError] = useState('');
+
+  // Constraint C12: Missing information resolution state
+  const [missingRequirement, setMissingRequirement] = useState<MissingRequirementDetail | null>(null);
+  const [referralInput, setReferralInput] = useState('');
+  const [showNoReferralAdvice, setShowNoReferralAdvice] = useState(false);
+
   const [errorDetails, setErrorDetails] = useState<{
     message: string;
     alternativeSlots?: AppointmentSlot[];
@@ -50,27 +56,35 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   if (!slot || !facility) return null;
 
+  const serviceName = facility.services[0]?.name || 'Clinical Consultation';
   const remainingCapacity = Math.max(0, slot.capacity - slot.confirmedBookingCount);
 
-  const handleConfirmBooking = async () => {
+  const handleAttemptBooking = async () => {
     if (!user) return;
-    if (isLoading) return; // Prevent duplicate rapid clicks
+    if (isLoading) return;
     setValidationError('');
 
-    // 1. Validate phone number
+    // 1. Phone validation
     const phoneDigits = patientPhone.replace(/\D/g, '');
     if (phoneDigits.length < 10) {
       setValidationError('Please enter a valid contact phone number with at least 10 digits.');
       return;
     }
 
-    // 2. Validate appointment slot date
-    const slotDateObj = new Date(slot.date);
-    if (isNaN(slotDateObj.getTime())) {
-      setValidationError('Appointment slot contains an invalid date format.');
+    // 2. CONSTRAINT C12: Pre-booking decision-critical requirements check
+    const requirementCheck = checkBookingPrerequisites(facility, serviceName, user, referralInput);
+    if (!requirementCheck.canProceed && requirementCheck.missingItem) {
+      setMissingRequirement(requirementCheck.missingItem);
+      setShowNoReferralAdvice(false);
       return;
     }
 
+    // 3. Proceed to atomic booking transaction
+    await executeBooking(referralInput.trim() || undefined);
+  };
+
+  const executeBooking = async (referralCode?: string) => {
+    if (!user || !slot || !facility) return;
     setIsLoading(true);
     setErrorDetails(null);
 
@@ -79,13 +93,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       patientId: user.id,
       patientName: user.name,
       patientEmail: user.email,
-      serviceName: facility.services[0]?.name || 'Clinical Consultation',
+      serviceName,
+      referralReference: referralCode,
     });
 
     setIsLoading(false);
 
     if (result.success && result.booking) {
       setConfirmedBooking(result.booking);
+      if (referralCode) {
+        updateProfile({ referralStatus: 'has_referral' });
+      }
       updateJourneyStageStatus(
         user.id,
         4,
@@ -104,9 +122,27 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     }
   };
 
+  const handleProvideReferral = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationError('');
+
+    const validation = validateReferralCode(referralInput);
+    if (!validation.valid) {
+      setValidationError(validation.error || 'Please enter a valid referral code.');
+      return;
+    }
+
+    setMissingRequirement(null);
+    await executeBooking(referralInput.trim());
+  };
+
   const handleResetModal = () => {
     setConfirmedBooking(null);
     setErrorDetails(null);
+    setMissingRequirement(null);
+    setShowNoReferralAdvice(false);
+    setReferralInput('');
+    setValidationError('');
     onClose();
   };
 
@@ -114,68 +150,213 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={handleResetModal}
-      title={confirmedBooking ? t.booking.successTitle : t.booking.confirmTitle}
+      title={
+        confirmedBooking
+          ? 'Appointment Confirmed'
+          : missingRequirement
+          ? 'Additional Requirement Needed'
+          : 'Confirm Appointment Booking'
+      }
       maxWidth="md"
     >
+      {/* 1. SUCCESS STATE */}
       {confirmedBooking ? (
-        /* Success State */
         <div className="space-y-4 text-center py-2 animate-in fade-in">
           <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-7 h-7" />
           </div>
 
           <div>
-            <h4 className="text-lg font-bold text-slate-900">{t.booking.successTitle}</h4>
+            <h4 className="text-lg font-bold text-slate-900">Appointment Confirmed!</h4>
             <p className="text-xs text-slate-500 mt-1">
               {facility.name} • {slot.date} at {slot.startTime}
             </p>
           </div>
 
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-left">
-            <div className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
-              {t.booking.referenceNumber}
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
+                Booking Reference
+              </span>
+              <span className="font-mono text-sm font-bold text-teal-800">
+                {confirmedBooking.bookingReference}
+              </span>
             </div>
-            <div className="font-mono text-base font-bold text-brand-700">
-              {confirmedBooking.bookingReference}
-            </div>
-            <div className="mt-2 text-xs text-slate-600 border-t border-slate-200/60 pt-2">
-              Transaction ID: <span className="font-mono text-[11px]">{confirmedBooking.transactionId}</span>
+
+            {confirmedBooking.referralReference && (
+              <div className="flex items-center justify-between border-t border-slate-200/60 pt-2">
+                <span className="text-slate-500">Verified Referral Code:</span>
+                <span className="font-mono font-semibold text-slate-800">
+                  {confirmedBooking.referralReference}
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between border-t border-slate-200/60 pt-2 text-slate-500 text-[11px]">
+              <span>Atomic Transaction ID:</span>
+              <span className="font-mono">{confirmedBooking.transactionId}</span>
             </div>
           </div>
 
-          <div className="p-3 rounded-lg bg-brand-50 border border-brand-200 text-xs text-brand-900 text-left flex items-start gap-2">
-            <ArrowRight className="w-4 h-4 text-brand-600 flex-shrink-0 mt-0.5" />
+          <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs text-teal-950 text-left flex items-start gap-2.5">
+            <ArrowRight className="w-4 h-4 text-teal-700 flex-shrink-0 mt-0.5" />
             <div>
-              <span className="font-semibold">Next Administrative Action:</span> {t.booking.nextStepsAdvice}
+              <span className="font-bold">Next Administrative Step:</span> Prepare your identity proof and insurance documentation in the Document Center.
             </div>
           </div>
 
-          <Button variant="primary" className="w-full mt-2" onClick={handleResetModal}>
-            {t.booking.goToDocs}
+          <Button variant="primary" className="w-full mt-2 bg-slate-900 text-white" onClick={handleResetModal}>
+            Go to My Appointments
           </Button>
         </div>
+      ) : missingRequirement ? (
+        /* 2. CONSTRAINT C12: MISSING PIECE OF INFORMATION STEP */
+        <div className="space-y-4 animate-in fade-in text-xs">
+          {/* Header Notice */}
+          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-950 space-y-2">
+            <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
+              <FileQuestion className="w-5 h-5 text-amber-700 flex-shrink-0" />
+              <span>{missingRequirement.title}</span>
+            </div>
+            <p className="text-xs leading-relaxed text-amber-900/90">
+              {missingRequirement.description}
+            </p>
+          </div>
+
+          {/* Why Necessary Context */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+            <div className="font-semibold text-slate-800 text-xs">Why is this required?</div>
+            <p className="text-slate-600 leading-relaxed text-[11px]">
+              {missingRequirement.whyNecessary}
+            </p>
+            <div className="text-[10px] text-slate-400 pt-1">
+              {missingRequirement.facilityPolicyNotice}
+            </div>
+          </div>
+
+          {validationError && (
+            <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+              <span>{validationError}</span>
+            </div>
+          )}
+
+          {!showNoReferralAdvice ? (
+            /* Input Form to provide missing information */
+            <form onSubmit={handleProvideReferral} className="space-y-4">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  {missingRequirement.inputLabel}
+                </label>
+                <input
+                  type="text"
+                  value={referralInput}
+                  onChange={(e) => {
+                    setReferralInput(e.target.value);
+                    if (validationError) setValidationError('');
+                  }}
+                  placeholder={missingRequirement.inputPlaceholder}
+                  className="w-full text-xs rounded-lg border-slate-300 py-2.5 px-3 focus:ring-teal-600 focus:border-teal-600 font-mono bg-white"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  {missingRequirement.formatHint}
+                </span>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full sm:flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2"
+                  isLoading={isLoading}
+                >
+                  Verify &amp; Continue Booking
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto text-slate-700 border-slate-300 py-2"
+                  onClick={() => setShowNoReferralAdvice(true)}
+                >
+                  I don&apos;t have it yet
+                </Button>
+              </div>
+            </form>
+          ) : (
+            /* Patient does NOT have the referral yet: Honest Guidance & Contact Details */
+            <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl animate-in fade-in">
+              <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                <HelpCircle className="w-4 h-4 text-teal-700" />
+                <span>Next steps to obtain your referral</span>
+              </div>
+
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                Specialist appointments cannot be confirmed without a doctor&apos;s referral. To obtain one:
+              </p>
+
+              <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600 pl-1">
+                <li>Schedule an initial consultation with your general physician or primary clinic.</li>
+                <li>Request an official referral note for <strong>{serviceName}</strong>.</li>
+                <li>Return to CarePath with your referral code to confirm your appointment.</li>
+              </ol>
+
+              {/* Facility Contact Details */}
+              <div className="pt-2 border-t border-slate-200 space-y-1.5 text-[11px]">
+                <div className="font-semibold text-slate-800">Clinic Contact Information:</div>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{facility.phone}</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Mail className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{facility.email}</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{facility.location.address}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-between gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowNoReferralAdvice(false)}
+                  className="text-teal-700 hover:underline text-xs"
+                >
+                  &larr; I have a referral code
+                </Button>
+
+                <Button variant="outline" size="sm" onClick={handleResetModal}>
+                  Close &amp; Keep Unconfirmed
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       ) : errorDetails ? (
-        /* Concurrency Failure / Capacity Exceeded State (C09) */
+        /* 3. CONCURRENCY FAILURE STATE (C09) */
         <div className="space-y-4 animate-in fade-in">
-          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-2.5">
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-2.5">
             <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
             <div className="text-xs">
-              <div className="font-bold text-sm text-rose-950">{t.booking.failedTitle}</div>
+              <div className="font-bold text-sm text-rose-950">Appointment Slot Claimed</div>
               <p className="mt-1 leading-relaxed">{errorDetails.message}</p>
             </div>
           </div>
 
-          {/* Alternatives */}
+          {/* Alternative slots */}
           {errorDetails.alternativeSlots && errorDetails.alternativeSlots.length > 0 && (
             <div className="pt-2">
               <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
-                {t.booking.alternativeSlotsTitle}
+                Available Alternative Times
               </h5>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {errorDetails.alternativeSlots.map((alt) => (
                   <div
                     key={alt.slotId}
-                    className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-xs"
+                    className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-xs"
                   >
                     <div>
                       <div className="font-semibold text-slate-900">
@@ -202,49 +383,53 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           )}
 
           <Button variant="secondary" className="w-full" onClick={handleResetModal}>
-            {t.common.close}
+            Close
           </Button>
         </div>
       ) : (
-        /* Normal Booking Confirmation Form */
+        /* 4. NORMAL BOOKING FORM */
         <div className="space-y-4">
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-medium">{t.booking.selectedFacility}:</span>
+              <span className="text-slate-500 font-medium">Healthcare Facility:</span>
               <span className="font-bold text-slate-900">{facility.name}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-medium">{t.booking.selectedService}:</span>
-              <span className="font-semibold text-slate-800">{facility.services[0]?.name}</span>
+              <span className="text-slate-500 font-medium">Clinical Service:</span>
+              <span className="font-semibold text-slate-800">{serviceName}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-medium">{t.booking.selectedTime}:</span>
+              <span className="text-slate-500 font-medium">Scheduled Time:</span>
               <span className="font-semibold text-slate-800">
                 {slot.date} ({slot.startTime} - {slot.endTime})
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-              <span className="text-slate-500 font-medium">{t.booking.capacityLeft}:</span>
-              <span className="font-bold text-emerald-700">{remainingCapacity} slot remaining</span>
+              <span className="text-slate-500 font-medium">Capacity Available:</span>
+              <span className="font-bold text-teal-700">{remainingCapacity} slot remaining</span>
             </div>
           </div>
 
-          {/* C09 Notice Banner */}
-          <div className="p-2.5 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 text-xs flex items-start gap-2">
-            <ShieldAlert className="w-4 h-4 text-teal-600 flex-shrink-0 mt-0.5" />
-            <p className="leading-relaxed">{t.booking.concurrencyNotice}</p>
-          </div>
+          {/* Referral Notice if facility requires referral */}
+          {facility.referralRequired && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2">
+              <FileQuestion className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
+              <p className="leading-relaxed text-[11px]">
+                Specialist Clinic Notice: This facility requires an active physician referral code for specialist bookings. You will be prompted to provide it during intake.
+              </p>
+            </div>
+          )}
 
-          {/* Patient Details & Contact Verification */}
+          {/* Patient Details & Phone Verification */}
           <div className="space-y-3 text-xs">
             <div>
-              <span className="text-slate-500">Booking for: </span>
+              <span className="text-slate-500">Booking Patient: </span>
               <span className="font-semibold text-slate-800">{user?.name}</span> ({user?.email})
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                Confirmation Phone Number (Required for appointment notices)
+                Contact Phone Number (For appointment notifications)
               </label>
               <input
                 type="tel"
@@ -254,7 +439,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   if (validationError) setValidationError('');
                 }}
                 placeholder="+91 98765 43210"
-                className="w-full text-xs rounded-lg border-slate-300 py-2 px-3 focus:ring-brand-500 focus:border-brand-500"
+                className="w-full text-xs rounded-lg border-slate-300 py-2 px-3 focus:ring-teal-600 focus:border-teal-600"
               />
             </div>
 
@@ -268,10 +453,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
           <div className="pt-2 flex items-center justify-end gap-2">
             <Button variant="outline" onClick={onClose} disabled={isLoading}>
-              {t.common.cancel}
+              Cancel
             </Button>
-            <Button variant="primary" onClick={handleConfirmBooking} isLoading={isLoading}>
-              {t.booking.confirmBtn}
+            <Button
+              variant="primary"
+              onClick={handleAttemptBooking}
+              isLoading={isLoading}
+              className="bg-slate-900 hover:bg-slate-800 text-white"
+            >
+              Continue to Confirm
             </Button>
           </div>
         </div>

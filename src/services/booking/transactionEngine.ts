@@ -8,6 +8,7 @@ export interface BookingRequest {
   patientEmail: string;
   serviceName: string;
   idempotencyKey?: string;
+  referralReference?: string;
 }
 
 export interface BookingResult {
@@ -142,6 +143,7 @@ export async function bookAppointmentSlot(req: BookingRequest): Promise<BookingR
         transactionId: 'tx-' + Math.random().toString(36).substring(2, 11),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        referralReference: req.referralReference,
       };
 
       commitBooking(newBooking, slot);

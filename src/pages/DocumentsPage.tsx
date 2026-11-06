@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, CheckCircle2, Clock, Upload, AlertCircle, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock, Upload, ArrowRight } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
@@ -8,7 +8,7 @@ import { DocumentUploadModal } from '../components/documents/DocumentUploadModal
 import type { DocumentRequirement } from '../types';
 
 interface DocumentsPageProps {
-  onNavigateAppointments: () => void;
+  onNavigateAppointments?: () => void;
 }
 
 export const DocumentsPage: React.FC<DocumentsPageProps> = ({ onNavigateAppointments }) => {
@@ -39,11 +39,24 @@ export const DocumentsPage: React.FC<DocumentsPageProps> = ({ onNavigateAppointm
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          {t.documents.title}
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">{t.documents.subtitle}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            {t.documents.title}
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">{t.documents.subtitle}</p>
+        </div>
+
+        {onNavigateAppointments && activeBooking && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onNavigateAppointments}
+            rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+          >
+            View Active Appointment
+          </Button>
+        )}
       </div>
 
       {/* Progress Banner */}

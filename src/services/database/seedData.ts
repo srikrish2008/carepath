@@ -724,3 +724,74 @@ export const INITIAL_DOCUMENT_REQUIREMENTS: DocumentRequirement[] = [
     maxSizeBytes: 5242880,
   },
 ];
+
+// =============================================================================
+// CONSTRAINT C04: RAW FACILITY INGESTION BATCH (Synthetic Pipeline Demonstration)
+// Contains genuine valid facilities + 4 specifically malformed records designed
+// to test schema validation, negative capacity, inverted hours, and duplicate keys.
+// =============================================================================
+export const RAW_FACILITY_INGESTION_BATCH: any[] = [
+  ...INITIAL_FACILITIES,
+  // Malformed 1: Negative Capacity
+  {
+    id: 'fac-malformed-negative-cap',
+    name: 'Green Valley Urgent Care (Malformed Ingestion)',
+    facilityType: 'specialty_clinic',
+    capacity: -5,
+    location: {
+      address: '12 Valley Rd, West District',
+      city: 'Metro City',
+      distanceKm: 4.5,
+    },
+    services: [{ id: 'srv-malformed-1', name: 'Urgent Care', referralRequired: false }],
+    accessibility: { wheelchair: true, verified: false },
+    sourceVerificationStatus: 'unverified',
+  },
+  // Malformed 2: Inverted Operating Hours (Closes at 08:00, opens at 18:00)
+  {
+    id: 'fac-malformed-inverted-hours',
+    name: 'Highland Community Clinic (Malformed Operating Hours)',
+    facilityType: 'community_health_center',
+    operatingHours: {
+      openTime: '18:00',
+      closeTime: '08:00',
+    },
+    location: {
+      address: '99 High Street, North Sector',
+      city: 'Metro City',
+      distanceKm: 8.0,
+    },
+    services: [{ id: 'srv-malformed-2', name: 'Family Consultation', referralRequired: false }],
+    accessibility: { wheelchair: false, verified: false },
+    sourceVerificationStatus: 'unverified',
+  },
+  // Malformed 3: Missing Required Name
+  {
+    id: 'fac-malformed-missing-name',
+    name: '', // Empty name!
+    facilityType: 'diagnostic_center',
+    location: {
+      address: '300 Central Avenue',
+      city: 'Metro City',
+      distanceKm: 2.0,
+    },
+    services: [{ id: 'srv-malformed-3', name: 'Pathology Screening', referralRequired: false }],
+    accessibility: { wheelchair: true, verified: false },
+    sourceVerificationStatus: 'unverified',
+  },
+  // Malformed 4: Duplicate Identifier (collides with Metro General)
+  {
+    id: 'fac-metro-general', // Duplicate ID!
+    name: 'Metro General Duplicate Scrape (Colliding Key)',
+    facilityType: 'hospital',
+    location: {
+      address: '104 Healthcare Boulevard, Central District',
+      city: 'Metro City',
+      distanceKm: 2.4,
+    },
+    services: [{ id: 'srv-dup', name: 'Duplicate Service Entry', referralRequired: false }],
+    accessibility: { wheelchair: true, verified: true },
+    sourceVerificationStatus: 'unverified',
+  },
+];
+

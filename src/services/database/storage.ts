@@ -13,6 +13,7 @@ import type {
   AuditLogEntry,
   SystemAnalytics,
   UserRole,
+  FacilityValidationReport,
 } from '../../types';
 import {
   INITIAL_FACILITIES,
@@ -20,7 +21,9 @@ import {
   INITIAL_SOURCE_RECORDS,
   INITIAL_CONFLICTS,
   INITIAL_DOCUMENT_REQUIREMENTS,
+  RAW_FACILITY_INGESTION_BATCH,
 } from './seedData';
+import { validateFacilityBatch } from '../data-quality/facilityValidator';
 
 const STORAGE_KEYS = {
   FACILITIES: 'carepath_db_facilities',
@@ -36,6 +39,7 @@ const STORAGE_KEYS = {
   NOTIFICATIONS: 'carepath_db_notifications',
   AUDIT_LOGS: 'carepath_db_audit_logs',
   CROSS_TAB_LOCK: 'carepath_c09_cross_tab_lock',
+  VALIDATION_REPORT: 'carepath_c04_validation_report',
 };
 
 class Mutex {
@@ -270,7 +274,11 @@ export class PersistentStorageEngine {
 
   public initIfEmpty(forceReset = false): void {
     if (forceReset || !this.getItem(STORAGE_KEYS.FACILITIES)) {
-      this.setItem(STORAGE_KEYS.FACILITIES, JSON.stringify(INITIAL_FACILITIES));
+      // CONSTRAINT C04: Validate raw ingestion batch at system initialization
+      const validation = validateFacilityBatch(RAW_FACILITY_INGESTION_BATCH);
+      this.setItem(STORAGE_KEYS.FACILITIES, JSON.stringify(validation.validFacilities));
+      this.setItem(STORAGE_KEYS.VALIDATION_REPORT, JSON.stringify(validation));
+
       this.setItem(STORAGE_KEYS.SLOTS, JSON.stringify(INITIAL_SLOTS));
       this.setItem(STORAGE_KEYS.SOURCES, JSON.stringify(INITIAL_SOURCE_RECORDS));
       this.setItem(STORAGE_KEYS.CONFLICTS, JSON.stringify(INITIAL_CONFLICTS));
@@ -283,6 +291,29 @@ export class PersistentStorageEngine {
       this.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify([]));
       this.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify([]));
     }
+  }
+
+  // --- CONSTRAINT C04: Data Quality & Ingestion Pipeline ---
+  public getFacilityValidationReport(): FacilityValidationReport {
+    const raw = this.getItem(STORAGE_KEYS.VALIDATION_REPORT);
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        // regenerate below
+      }
+    }
+    const report = validateFacilityBatch(RAW_FACILITY_INGESTION_BATCH);
+    this.setItem(STORAGE_KEYS.VALIDATION_REPORT, JSON.stringify(report));
+    return report;
+  }
+
+  public ingestFacilityBatch(batch: any[]): FacilityValidationReport {
+    const report = validateFacilityBatch(batch);
+    this.setItem(STORAGE_KEYS.FACILITIES, JSON.stringify(report.validFacilities));
+    this.setItem(STORAGE_KEYS.VALIDATION_REPORT, JSON.stringify(report));
+    this.notifyTabs();
+    return report;
   }
 
   /**

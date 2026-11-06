@@ -1,126 +1,141 @@
-# CarePath — Complete Product Implementation
+# CarePath — Healthcare Access & Patient Navigation Platform
 
 > **Healthcare access, without the confusion.**  
 > *Find the right care. Secure your appointment. Know your next step.*
 
-CarePath is an intelligent, full-stack patient-navigation platform built for **Problem Statement 3 (PS3 — Patient Journey & Healthcare Access Navigator)**, addressing the critical administrative friction between needing healthcare and successfully receiving it.
-
-CarePath integrates two surprise constraints:
-- **Constraint C02 — The Truth Is Conflicting:** Source-aware multi-registry reconciliation, stale-record decay penalties, authority scoring, and an authorized human verification workflow.
-- **Constraint C09 — Two People, One Resource:** Concurrency-safe atomic transaction locks, idempotency token guarantees, and automatic alternative recommendations under high-concurrency race conditions.
+CarePath is an intelligent, full-stack patient navigation web application built to eliminate administrative friction in healthcare access. It guides patients from discovery and requirements comprehension through atomic appointment booking and longitudinal care tracking.
 
 ---
 
-## Key Product Capabilities
+## Practical Constraints Implemented in the Patient Workflow
 
-- **Module A — Public Landing Page:** Clear value proposition, product identity, how it works, and trust & safety philosophy.
-- **Module B — Authentication & Onboarding:** Session persistence, role-based access (Patient / Administrator), instant demo access switcher for judges, and non-sensitive administrative intake.
-- **Module C — Personalized Patient Dashboard:** Prominent **"YOUR NEXT STEP"** dynamic banner, upcoming appointment cards, and real computed progress metrics.
-- **Module D — Healthcare Discovery Engine:** Deterministic matching logic separating hard requirements (services, step-free access, slots) from soft preferences, with explainability breakdowns and C02 warning banners.
-- **Module E — Facility Profiles:** Complete facility overview, verified services, live appointment capacity, required documents checklist, and source records.
-- **Module F — Appointment Navigator:** Atomic check-and-claim booking, unique references (`CP-YYYYMM-XXXX`), transactional cancellations, and atomic rescheduling without orphan slots.
-- **Module G — Smart Document Centre:** Facility-specific paperwork checklists, file extension & size validation (Max 5MB), and readiness progress tracking.
-- **Module H — Persistent 7-Stage Patient Journey:** Full lifecycle navigation tracking from service requirement to attended visit and follow-up.
-- **Module I — Grounded CarePath AI Assistant:** Context-aware administrative assistant grounded in real database records with strict clinical diagnosis/prescription refusal guardrails.
-- **Module J — Dual-Language Switching:** 100% bilingual coverage in English and Tamil (`ta`) across navigation, statuses, forms, and instructions.
-- **Module K — Accessibility & ARIA:** Semantic HTML, focus visible rings, keyboard escape handling, and non-color status indicators.
-- **Module L — Notifications & Reminders:** In-app notification center tracking confirmations, cancellations, and verification events.
-- **Module M — Admin Console & Constraint Workbench:** System analytics computed from stored records, interactive C09 Concurrency Lab, and interactive C02 Conflict Lab.
+1. **Constraint C04 — Garbage In, Garbage Everywhere (Facility Data Quality Pipeline)**
+   - **Ingestion Boundary Validation:** Ingested facility records pass through a central validation layer (`src/services/data-quality/facilityValidator.ts`) evaluating schema structure, required fields, numeric ranges (capacities $\ge 0$), operating hours (closing after opening), and duplicate IDs.
+   - **Quarantine Isolation:** Malformed records are safely quarantined with diagnostic audit reasons without crashing or polluting the patient search index.
+   - **Patient-Facing Transparency:** A clean indicator (`Facility Information Checked • 4 verified facilities active • 4 malformed records quarantined`) in Facility Discovery allows patients and evaluators to inspect the data quality report with exact rejection reasons.
+
+2. **Constraint C12 — The Missing Piece of Information (Specialist Booking Clarification)**
+   - **Pre-Booking Verification:** When booking specialist appointments (e.g. Cardiology at St. Jude Clinic), CarePath evaluates decision-critical prerequisites (`src/services/booking/requirementChecker.ts`).
+   - **Transparent Clarification:** If a required physician referral reference is missing, CarePath halts confirmation, explains *why* the facility requires it, and prompts the patient to provide it.
+   - **Safe Deferral:** If the patient selects *"I don't have it yet"*, the booking remains unconfirmed, clinic contact information is displayed, and clear instructions to obtain a referral are provided.
+   - **Atomic Attachment:** When provided, the referral code is validated and atomically committed to the confirmed appointment voucher.
+
+3. **Core Transactional Integrity (C09 Concurrency & C02 Multi-Source Reconciliation)**
+   - **C09 Concurrency Locking:** Native Web Locks API (`navigator.locks.request`) with mutual exclusion leases serializes checkout, preventing double-booking of final slots.
+   - **C02 Truth Reconciliation:** Source-weighted multi-registry blend policy with stale penalties (>180 days) and persistent administrative audit logs.
+
+---
+
+## Authentication & Security Architecture
+
+CarePath features a complete authentication experience:
+- **Sign In / Sign Up / Forgot Password / Sign Out / Profile**
+- **Cryptographic Security:** Passwords hashed with salt via the Web Crypto API (`crypto.subtle` SHA-256). Passwords are never stored in plaintext.
+- **Session Persistence:** Persistent user sessions stored with patient-specific data isolation (User A cannot view or manipulate User B's appointments).
+- **Demo Quick-Fill:** For evaluators, the Sign In page provides one-click demo credentials autofill:
+  - **Demo Patient:** `patient@carepath.example` / `Password123!`
+  - **Demo Admin:** `admin@carepath.example` / `AdminPass123!`
+- **Firebase Authentication Ready:** If you configure Firebase environment variables in `.env`, the adapter automatically bridges to Firebase Auth.
+
+### Optional Firebase Setup Instructions
+To connect an external Firebase project:
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Populate the standard Firebase Web configuration variables:
+   ```env
+   VITE_FIREBASE_API_KEY=your_firebase_api_key
+   VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=your_project_id
+   VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   VITE_FIREBASE_APP_ID=your_app_id
+   ```
+3. Deploy Firestore security rules using `firestore.rules`.
+*Note: In the absence of `.env`, CarePath runs seamlessly using its built-in cryptographic local authentication provider and Web Locks transactional engine.*
+
+---
+
+## Navigation & Page Structure
+
+### Public Visitor Views
+- **Landing Page (`/`):** Clean healthcare product presentation with Hero, How CarePath Works, Key Benefits, Handling Incomplete Information, and Emergency Notice.
+- **Public Facility Discovery (`/discovery`):** Explore and filter clinics by specialty, distance, and wheelchair accessibility without being forced to log in.
+- **Facility Profile (`/facility/:id`):** View clinic services, live appointment capacities, and document requirements.
+- **Authentication (`/auth`):** Sign In, Sign Up with profile customization, and Forgot Password recovery.
+
+### Protected Patient Views
+- **Patient Dashboard (`/dashboard`):** Welcome greeting, upcoming appointment card, quick facility search, document readiness progress, and "YOUR NEXT STEP" banner.
+- **My Appointments (`/appointments`):** View confirmed visits, verified referral codes, atomic cancellations, and rescheduling.
+- **My Documents (`/documents`):** Facility-tailored paperwork checklists, extension & size validation (max 5MB), and verified status tracking.
+- **My Journey (`/journey`):** 7-stage longitudinal care tracker from needs assessment to clinical attendance.
+- **CarePath Guide (`/ai`):** Grounded administrative Q&A assistant with strict clinical diagnosis/prescription refusals and emergency guidance (112 in India).
+- **My Profile (`/profile`):** Personal information, language preferences, and accessibility settings.
 
 ---
 
 ## Technology Stack
 
 - **Frontend:** React 19, TypeScript, Tailwind CSS, Lucide React
-- **Build Tool:** Vite 8
-- **Transactional Database:** Local storage-backed atomic transactional storage engine with mutex locks and isolation guarantees, paired with full Cloud Firestore compatibility and `firestore.rules`.
-- **Testing:** Vitest v2.1.8, React Testing Library, jsdom (150 passing tests)
-- **Internationalization:** Custom zero-dependency bilingual engine (English / Tamil)
+- **Build Tool:** Vite 8 (`built in 1.4s`)
+- **Testing:** Vitest v2.1.8, React Testing Library, jsdom (192 passing tests across 20 suites)
+- **Static Analysis:** oxlint (0 errors)
+- **Data Quality:** Centralized C04 schema and range validation pipeline
+- **Transactions:** Web Locks API (`navigator.locks`) with mutual exclusion lease fallback
 
 ---
 
-## Quick Start & Setup
+## Quick Start & Verification
 
-### 1. Prerequisites
-- Node.js v18+ (tested on Node v24.18)
-- npm v9+
-
-### 2. Installation
+### 1. Run Development Server
 ```bash
 npm install
-```
-
-### 3. Run Locally in Development Mode
-```bash
 npm run dev
 ```
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-### 4. Run the 150 Automated Tests
+### 2. Run Complete Automated Test Suite (192 Tests)
 ```bash
 npm test
 ```
-
-### 5. Run Production Build
-```bash
-npm run build
+All 20 test suites pass:
 ```
-
----
-
-## Evaluation for Judges
-
-Judges can evaluate the system in **Zero-Config Demo Mode** immediately upon launching:
-1. **Pre-configured Demo Accounts:**
-   - **Demo Patient:** `Alex Rivera` (Cardiology need, wheelchair access required, active journey).
-   - **Healthcare Administrator:** `Dr. Sarah Chen` (Full C02/C09 lab access and conflict resolution authorization).
-2. **Top Header Switcher:** Toggle between Patient and Admin mode with a single click.
-3. **C09 Concurrency Lab:** Navigate to **Admin Console -> C09 Concurrency Lab** and trigger 2 to 20 concurrent requests racing for a single slot.
-4. **C02 Conflict Lab:** Navigate to **Admin Console -> C02 Conflict Lab** to inspect source authority scoring and submit human verification overrides with audit logs.
-5. **Detailed Walkthrough:** Consult [HACKATHON_DEMO.md](file:///c:/Users/krish/OneDrive/Desktop/ai/HACKATHON_DEMO.md) for step-by-step test instructions.
-
----
-
-## Automated Test Suite (150 Tests)
-
-The test suite contains **150 distinct automated test cases** meeting the exact required category distribution:
-
-```
+✓ src/test/c04_data_quality.test.ts (7 tests)
+✓ src/test/c12_missing_information.test.ts (5 tests)
+✓ src/test/auth_experience.test.ts (8 tests)
+✓ src/test/comparison.test.ts (8 tests)
 ✓ src/test/discovery.test.ts (12 tests)
 ✓ src/test/appointment.test.ts (10 tests)
-✓ src/test/documents.test.ts (10 tests)
+✓ src/test/documents.test.ts (11 tests)
 ✓ src/test/matching.test.ts (12 tests)
-✓ src/test/notifications.test.ts (5 tests)
 ✓ src/test/c02_conflict.test.ts (18 tests)
+✓ src/test/c09_concurrency.test.ts (24 tests)
 ✓ src/test/journey.test.ts (8 tests)
 ✓ src/test/ai_assistant.test.ts (10 tests)
-✓ src/test/c09_concurrency.test.ts (22 tests)
+✓ src/test/hackathon_readiness.test.ts (8 tests)
+✓ src/test/security_validation.test.ts (8 tests)
 ✓ src/test/auth.test.ts (10 tests)
 ✓ src/test/admin_analytics.test.ts (5 tests)
-✓ src/test/security_validation.test.ts (5 tests)
+✓ src/test/notifications.test.ts (5 tests)
 ✓ src/test/i18n.test.ts (7 tests)
 ✓ src/test/accessibility.test.tsx (8 tests)
 ✓ src/test/navigation.test.tsx (8 tests)
 
-Test Files  15 passed (15)
-     Tests  150 passed (150)
+Test Files: 20 passed (20)
+Tests:      192 passed (192)
 ```
 
-See [TEST_REPORT.md](file:///c:/Users/krish/OneDrive/Desktop/ai/TEST_REPORT.md) for full execution logs and assertions.
+### 3. Production Build & Lint
+```bash
+npm run build
+npm run lint
+```
 
 ---
 
-## Database Security Rules
+## Known Boundaries & Disclaimers
 
-Firebase Cloud Firestore security rules are defined in `firestore.rules`:
-- Patients have read/write access restricted strictly to their own user profile, documents, bookings, and notifications.
-- Direct client manipulation of appointment slot capacities is blocked; capacity updates must occur via trusted transactional functions.
-- Audit logs are append-only and immutable.
-- Source conflict resolution is restricted exclusively to authorized administrators.
-
----
-
-## Known Limitations
-
-- **Simulated File Uploads:** Uploaded documents are securely verified for extension (.pdf, .jpg, .png) and size (<5MB) within local persistent sandbox storage rather than sending files to third-party cloud buckets.
-- **External SMS / Carrier Alerts:** Notifications are delivered through the in-app notification center; third-party Twilio/SMS credentials are intentionally not bundled into client-side demo code.
+- **Non-Clinical Boundary:** CarePath is an administrative access and patient navigation platform. It does not provide medical diagnoses, treatment recommendations, or medication prescriptions.
+- **Emergency Medical Guidance:** In any medical emergency, patients are instructed to contact local emergency services immediately (Call **112** in India or their local emergency dial).
+- **Synthetic Data Transparency:** All hospital profiles, provider rosters, and appointment slots are synthetic demo entities clearly labeled to prevent confusion with live real-world hospital feeds.

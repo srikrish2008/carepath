@@ -131,6 +131,11 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
                       <span className="font-mono text-xs font-bold text-slate-500">
                         Ref: {b.bookingReference}
                       </span>
+                      {b.referralReference && (
+                        <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">
+                          Referral: {b.referralReference}
+                        </span>
+                      )}
                     </div>
 
                     <h4 className="text-lg font-bold text-slate-900">{fac?.name || b.facilityId}</h4>

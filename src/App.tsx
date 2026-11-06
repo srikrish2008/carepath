@@ -36,11 +36,25 @@ const AppContent: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // If user is not authenticated and is on a protected page, show auth page
-  const isPublicPage = currentPage === 'landing' || currentPage === 'auth';
+  // Publicly accessible pages for guest exploration
+  const isPublicPage =
+    currentPage === 'landing' ||
+    currentPage === 'auth' ||
+    currentPage === 'discovery' ||
+    currentPage === 'facilityDetail';
+
   if (!isAuthenticated && !isPublicPage) {
-    return <AuthPage onSuccess={() => setCurrentPage('dashboard')} />;
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
+        <Header onNavigate={navigateTo} currentPage={currentPage} />
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
+          <AuthPage onSuccess={() => setCurrentPage('dashboard')} />
+        </main>
+      </div>
+    );
   }
+
+  const showSidebar = isAuthenticated && currentPage !== 'landing' && currentPage !== 'auth';
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900">
@@ -49,13 +63,13 @@ const AppContent: React.FC = () => {
 
       {/* Main Layout */}
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
-        {/* Sidebar only on dashboard/app pages */}
-        {currentPage !== 'landing' && currentPage !== 'auth' && (
+        {/* Sidebar on authenticated patient views */}
+        {showSidebar && (
           <Sidebar currentPage={currentPage} onNavigate={navigateTo} />
         )}
 
         {/* Content Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
+        <main className={`flex-1 p-4 sm:p-6 lg:p-8 min-w-0 ${!showSidebar ? 'max-w-7xl mx-auto' : ''}`}>
           {currentPage === 'landing' && (
             <LandingPage
               onStart={() => navigateTo('dashboard')}

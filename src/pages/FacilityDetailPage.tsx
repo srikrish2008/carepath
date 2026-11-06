@@ -27,7 +27,7 @@ export const FacilityDetailPage: React.FC<FacilityDetailPageProps> = ({
   onBack,
   onNavigateAppointments,
 }) => {
-  const { facilities, slots, conflicts, docRequirements, sourceRecords } = useAppData();
+  const { facilities, slots, conflicts, docRequirements } = useAppData();
   const { t } = useI18n();
 
   const [selectedSlot, setSelectedSlot] = useState<AppointmentSlot | null>(null);
