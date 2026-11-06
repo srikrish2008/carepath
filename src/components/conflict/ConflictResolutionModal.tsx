@@ -45,7 +45,7 @@ export const ConflictResolutionModal: React.FC<ConflictResolutionModalProps> = (
         setSuccessMsg('');
         onClose();
       }, 1500);
-    } catch (e) {
+    } catch (_e) {
       // error handling
     } finally {
       setIsSubmitting(false);

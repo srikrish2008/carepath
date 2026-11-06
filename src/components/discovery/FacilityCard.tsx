@@ -96,12 +96,12 @@ export const FacilityCard: React.FC<FacilityCardProps> = ({
           <div className="flex items-center gap-1.5">
             <Accessibility className="w-3.5 h-3.5 text-slate-400" />
             <span>
-              {facility.accessibility.wheelchair ? 'Wheelchair Accessible' : 'Step Access Only'}
+              {facility.accessibility.wheelchair ? t.comparison.accessible : t.comparison.notAccessible}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <Languages className="w-3.5 h-3.5 text-slate-400" />
-            <span>Languages: {facility.supportedLanguages.map((l) => l.toUpperCase()).join(', ')}</span>
+            <span>{t.comparison.languagesTitle}: {facility.supportedLanguages.map((l) => l.toUpperCase()).join(', ')}</span>
           </div>
         </div>
 
@@ -166,7 +166,7 @@ export const FacilityCard: React.FC<FacilityCardProps> = ({
               onChange={() => onCompareToggle(facility.id)}
               className="rounded text-brand-600 focus:ring-brand-500"
             />
-            <span>Compare</span>
+            <span>{t.discovery.compareN}</span>
           </label>
         )}
 

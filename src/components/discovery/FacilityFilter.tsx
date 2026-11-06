@@ -36,7 +36,7 @@ export const FacilityFilter: React.FC<FacilityFilterProps> = ({
 
       {/* Specialty */}
       <div>
-        <label className="block text-xs font-semibold text-slate-700 mb-1">Medical Specialty</label>
+        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.comparison.specialtiesTitle}</label>
         <select
           value={criteria.requiredSpecialty || ''}
           onChange={(e) =>
@@ -88,7 +88,7 @@ export const FacilityFilter: React.FC<FacilityFilterProps> = ({
 
       {/* Language filter */}
       <div className="pt-2">
-        <label className="block text-xs font-semibold text-slate-700 mb-1">Supported Language</label>
+        <label className="block text-xs font-semibold text-slate-700 mb-1">{t.comparison.languagesTitle}</label>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <button
             type="button"

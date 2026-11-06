@@ -76,10 +76,10 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            {t.nav.appointments}
+            {t.appointments.title}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Confirmed visits secured with transactional consistency.
+            {t.appointments.subtitle}
           </p>
         </div>
 
@@ -89,7 +89,7 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
           onClick={onNavigateDiscovery}
           leftIcon={<Calendar className="w-3.5 h-3.5" />}
         >
-          Book New Appointment
+          {t.appointments.findProviders}
         </Button>
       </div>
 
@@ -103,15 +103,15 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
       {/* Confirmed Appointments Section */}
       <div className="space-y-4">
         <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-          Active Confirmed Appointments ({confirmedBookings.length})
+          {t.dashboard.activeAppointment} ({confirmedBookings.length})
         </h3>
 
         {confirmedBookings.length === 0 ? (
           <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-3">
             <Clock className="w-8 h-8 text-slate-300 mx-auto" />
-            <p>You have no active upcoming appointments booked.</p>
+            <p>{t.appointments.noUpcoming}</p>
             <Button variant="primary" size="sm" onClick={onNavigateDiscovery}>
-              Find Healthcare Providers
+              {t.appointments.findProviders}
             </Button>
           </div>
         ) : (
@@ -126,14 +126,14 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        {b.status}
+                        {t.appointments.confirmedBadge}
                       </span>
                       <span className="font-mono text-xs font-bold text-slate-500">
-                        Ref: {b.bookingReference}
+                        {t.appointments.refLabel}: {b.bookingReference}
                       </span>
                       {b.referralReference && (
                         <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200">
-                          Referral: {b.referralReference}
+                          {t.appointments.referralLabel}: {b.referralReference}
                         </span>
                       )}
                     </div>
@@ -162,7 +162,7 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
                       size="sm"
                       onClick={() => onNavigateDocuments()}
                     >
-                      Check Documents
+                      {t.dashboard.manageDocs}
                     </Button>
 
                     <Button
@@ -170,7 +170,7 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
                       size="sm"
                       onClick={() => setRescheduleTargetBooking(b)}
                     >
-                      {t.booking.rescheduleBooking}
+                      {t.appointments.rescheduleBtn}
                     </Button>
 
                     <Button
@@ -179,7 +179,7 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
                       disabled={isProcessing}
                       onClick={() => handleCancel(b.bookingId)}
                     >
-                      {t.booking.cancelBooking}
+                      {t.appointments.cancelBtn}
                     </Button>
                   </div>
                 </div>
@@ -193,19 +193,19 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
       {rescheduleTargetBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white rounded-xl shadow-2xl border border-slate-200 p-5 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Reschedule Appointment</h3>
+            <h3 className="text-base font-bold text-slate-900">{t.appointments.rescheduleModalTitle}</h3>
             <p className="text-xs text-slate-500">
-              Select an alternative slot at this facility. Old capacity will be released atomically when the new slot is secured.
+              {t.appointments.rescheduleModalDesc}
             </p>
 
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-slate-700">Available Alternative Slots</label>
+              <label className="block text-xs font-semibold text-slate-700">{t.appointments.selectNewSlot}</label>
               <select
                 value={rescheduleSlotId}
                 onChange={(e) => setRescheduleSlotId(e.target.value)}
                 className="w-full text-xs rounded-lg border-slate-300 py-2 px-3 bg-slate-50 font-mono"
               >
-                <option value="">Choose an open slot...</option>
+                <option value="">{t.facility.selectSlot}...</option>
                 {slots
                   .filter(
                     (s) =>
@@ -227,7 +227,7 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
                 size="sm"
                 onClick={() => setRescheduleTargetBooking(null)}
               >
-                Cancel
+                {t.appointments.keepBookingBtn}
               </Button>
               <Button
                 variant="primary"
@@ -236,7 +236,7 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
                 disabled={!rescheduleSlotId || isProcessing}
                 isLoading={isProcessing}
               >
-                Confirm Reschedule
+                {t.appointments.rescheduleBtn}
               </Button>
             </div>
           </div>
@@ -247,7 +247,7 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
       {pastBookings.length > 0 && (
         <div className="pt-6 border-t border-slate-200 space-y-3">
           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Past &amp; Cancelled Bookings
+            {t.appointments.pastBookings}
           </h4>
           <div className="space-y-2 text-xs">
             {pastBookings.map((pb) => (
@@ -260,7 +260,11 @@ export const AppointmentsPage: React.FC<AppointmentsPageProps> = ({
                   {pb.appointmentDate} at {pb.startTime} (Ref: {pb.bookingReference})
                 </div>
                 <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                  {pb.status}
+                  {pb.status === 'cancelled'
+                    ? t.appointments.cancelledBadge
+                    : pb.status === 'rescheduled'
+                    ? t.appointments.rescheduledBadge
+                    : pb.status}
                 </span>
               </div>
             ))}

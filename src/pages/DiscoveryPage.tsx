@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, HelpCircle, ArrowLeftRight, X, ShieldCheck, ChevronRight, AlertTriangle } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
 import { useAuth } from '../context/AuthContext';
+import { useI18n } from '../i18n';
 import { storage } from '../services/database/storage';
 import { evaluateFacilityFeasibility, type MatchingCriteria } from '../services/matching/feasibilityEngine';
 import { FacilityCard } from '../components/discovery/FacilityCard';
@@ -23,6 +24,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
 }) => {
   const { facilities, slots, refreshData } = useAppData();
   const { user } = useAuth();
+  const { t } = useI18n();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [criteria, setCriteria] = useState<MatchingCriteria>({
@@ -128,10 +130,10 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Find Healthcare Facilities
+          {t.discovery.title}
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Search verified hospitals, clinics, and diagnostic centers matching your health needs.
+          {t.discovery.subtitle}
         </p>
       </div>
 
@@ -143,13 +145,13 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-teal-950">Facility Information Checked</span>
+              <span className="font-bold text-teal-950">{t.discovery.qualityTitle}</span>
               <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-teal-100 text-teal-800">
-                Data Quality Active
+                C04 Active
               </span>
             </div>
             <p className="text-slate-600 text-[11px] mt-0.5">
-              All {validationReport.validCount} listed facilities passed strict schema validation. {validationReport.quarantinedCount} malformed records were safely quarantined.
+              {validationReport.validCount} {t.discovery.resultsCount}. {validationReport.quarantinedCount} {t.c04.quarantinedLabel}.
             </p>
           </div>
         </div>
@@ -159,7 +161,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           onClick={() => setIsQualityModalOpen(true)}
           className="text-[11px] font-semibold text-teal-800 hover:text-teal-950 underline flex-shrink-0 flex items-center gap-1"
         >
-          <span>View Quality Report</span>
+          <span>{t.discovery.viewQualityReport}</span>
           <ChevronRight className="w-3 h-3" />
         </button>
       </div>
@@ -171,7 +173,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by facility name, specialty (e.g. Cardiology), or service..."
+          placeholder={t.discovery.searchPlaceholder}
           className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl bg-white border border-slate-200 shadow-xs focus:ring-2 focus:ring-teal-600 focus:border-teal-600"
         />
       </div>
@@ -200,7 +202,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
         <div className="lg:col-span-3 space-y-4">
           <div className="flex items-center justify-between text-xs text-slate-500">
             <span>
-              Showing <strong>{evaluatedFacilities.length}</strong> verified healthcare facilities
+              {evaluatedFacilities.length} {t.discovery.resultsCount}
             </span>
             {comparedIds.length > 0 && (
               <div className="flex items-center gap-2">
@@ -211,14 +213,14 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                   className="inline-flex items-center gap-1.5 shadow-xs font-semibold text-xs px-3 py-1.5 bg-slate-900 text-white"
                 >
                   <ArrowLeftRight className="w-3.5 h-3.5" />
-                  <span>Compare ({comparedIds.length})</span>
+                  <span>{t.discovery.compareN} ({comparedIds.length})</span>
                 </Button>
                 <button
                   type="button"
                   onClick={handleClearCompare}
                   className="text-xs text-slate-400 hover:text-slate-600 underline font-medium"
                 >
-                  Clear
+                  {t.discovery.clearComparison}
                 </button>
               </div>
             )}
@@ -227,11 +229,11 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           {/* Removable Active Filter Chips */}
           {hasActiveFilters && (
             <div className="flex flex-wrap items-center gap-1.5 py-1">
-              <span className="text-[11px] text-slate-400 font-medium mr-1">Active filters:</span>
+              <span className="text-[11px] text-slate-400 font-medium mr-1">{t.discovery.filterTitle}:</span>
 
               {searchQuery.trim() && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-slate-100 text-slate-800 border border-slate-200">
-                  <span>Search: &ldquo;{searchQuery}&rdquo;</span>
+                  <span>&ldquo;{searchQuery}&rdquo;</span>
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
@@ -245,7 +247,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
 
               {criteria.requiredSpecialty && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-teal-50 text-teal-800 border border-teal-200">
-                  <span>Specialty: {criteria.requiredSpecialty}</span>
+                  <span>{criteria.requiredSpecialty}</span>
                   <button
                     type="button"
                     onClick={() => setCriteria((prev) => ({ ...prev, requiredSpecialty: undefined }))}
@@ -259,7 +261,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
 
               {criteria.wheelchairRequired && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-teal-50 text-teal-800 border border-teal-200">
-                  <span>Wheelchair Accessible</span>
+                  <span>{t.discovery.requireWheelchair}</span>
                   <button
                     type="button"
                     onClick={() => setCriteria((prev) => ({ ...prev, wheelchairRequired: false }))}
@@ -273,7 +275,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
 
               {criteria.requireNoReferral && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-teal-50 text-teal-800 border border-teal-200">
-                  <span>No Referral Required</span>
+                  <span>{t.discovery.noReferralOnly}</span>
                   <button
                     type="button"
                     onClick={() => setCriteria((prev) => ({ ...prev, requireNoReferral: false }))}
@@ -290,7 +292,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                 onClick={handleClearAllFilters}
                 className="text-xs text-rose-600 hover:text-rose-700 underline font-medium ml-1"
               >
-                Clear all filters
+                {t.discovery.clearFilters}
               </button>
             </div>
           )}
@@ -299,9 +301,9 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
             <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-3">
               <HelpCircle className="w-9 h-9 text-slate-300 mx-auto" />
               <div className="space-y-1">
-                <h4 className="font-bold text-sm text-slate-900">No matching healthcare facilities found</h4>
+                <h4 className="font-bold text-sm text-slate-900">{t.discovery.noResults}</h4>
                 <p className="text-slate-500 max-w-sm mx-auto leading-relaxed">
-                  No clinics match your active filters and search terms. Try searching for a specialty like &ldquo;Cardiology&rdquo; or reset your filters.
+                  {t.discovery.noResultsDesc}
                 </p>
               </div>
               <Button
@@ -309,7 +311,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
                 size="sm"
                 onClick={handleClearAllFilters}
               >
-                Clear all filters
+                {t.discovery.resetFilters}
               </Button>
             </div>
           ) : (
@@ -341,7 +343,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
               {comparedIds.length}
             </span>
             <span className="font-medium text-slate-200">
-              {comparedIds.length === 1 ? '1 facility selected' : `${comparedIds.length} facilities selected for comparison`}
+              {comparedIds.length} {t.discovery.facilitiesSelected}
             </span>
           </div>
 
@@ -353,14 +355,14 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
               className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm"
             >
               <ArrowLeftRight className="w-3.5 h-3.5" />
-              <span>Compare Now</span>
+              <span>{t.discovery.compareN}</span>
             </Button>
             <button
               type="button"
               onClick={handleClearCompare}
               className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-800 transition-colors"
             >
-              Clear
+              {t.discovery.clearComparison}
             </button>
           </div>
         </aside>
@@ -381,29 +383,29 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
       <Modal
         isOpen={isQualityModalOpen}
         onClose={() => setIsQualityModalOpen(false)}
-        title="Facility Data Quality & Validation Report"
+        title={t.c04.modalTitle}
         maxWidth="lg"
       >
         <div className="space-y-4 text-xs">
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-            <div className="font-bold text-slate-900 text-xs">Constraint C04: Data Ingestion Screening</div>
+            <div className="font-bold text-slate-900 text-xs">{t.c04.modalTitle}</div>
             <p className="text-slate-600 text-[11px] leading-relaxed">
-              Before facility records enter the patient search index, they pass through a central schema and range validation layer. Corrupted, inverted, or duplicate records are quarantined with exact diagnostic audit reasons.
+              {t.c04.modalDesc}
             </p>
           </div>
 
           {/* Metrics Overview */}
           <div className="grid grid-cols-3 gap-3">
             <div className="p-3 bg-white border border-slate-200 rounded-xl text-center">
-              <div className="text-slate-400 text-[10px] uppercase font-bold">Total Ingested</div>
+              <div className="text-slate-400 text-[10px] uppercase font-bold">{t.c04.totalLabel}</div>
               <div className="text-xl font-bold text-slate-900 mt-1">{validationReport.totalIngested}</div>
             </div>
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
-              <div className="text-emerald-700 text-[10px] uppercase font-bold">Verified &amp; Active</div>
+              <div className="text-emerald-700 text-[10px] uppercase font-bold">{t.c04.passedLabel}</div>
               <div className="text-xl font-bold text-emerald-800 mt-1">{validationReport.validCount}</div>
             </div>
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-center">
-              <div className="text-rose-700 text-[10px] uppercase font-bold">Quarantined</div>
+              <div className="text-rose-700 text-[10px] uppercase font-bold">{t.c04.quarantinedLabel}</div>
               <div className="text-xl font-bold text-rose-800 mt-1">{validationReport.quarantinedCount}</div>
             </div>
           </div>
@@ -412,7 +414,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
           <div>
             <div className="font-bold text-slate-800 mb-2 flex items-center gap-1.5">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
-              <span>Quarantined Records &amp; Diagnostic Reasons ({validationReport.quarantinedRecords.length})</span>
+              <span>{t.c04.quarantineReasons} ({validationReport.quarantinedRecords.length})</span>
             </div>
 
             <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
@@ -445,7 +447,7 @@ export const DiscoveryPage: React.FC<DiscoveryPageProps> = ({
               size="sm"
               onClick={() => setIsQualityModalOpen(false)}
             >
-              Close Quality Report
+              {t.common.close}
             </Button>
           </div>
         </div>

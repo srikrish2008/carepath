@@ -28,17 +28,17 @@ export const ProfilePage: React.FC = () => {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          {t.nav.profile}
+          {t.profile.title}
         </h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Manage your administrative healthcare preferences and session.
+          {t.profile.subtitle}
         </p>
       </div>
 
       {success && (
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-          <span>Profile preferences updated successfully.</span>
+          <span>{t.profile.saveSuccess}</span>
         </div>
       )}
 
@@ -68,7 +68,7 @@ export const ProfilePage: React.FC = () => {
         </div>
 
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">Full Name</label>
+          <label className="block font-semibold text-slate-700 mb-1">{t.profile.nameLabel}</label>
           <input
             type="text"
             value={name}
@@ -78,7 +78,7 @@ export const ProfilePage: React.FC = () => {
         </div>
 
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">Location (District / City)</label>
+          <label className="block font-semibold text-slate-700 mb-1">{t.profile.locationLabel}</label>
           <input
             type="text"
             value={location}
@@ -88,7 +88,7 @@ export const ProfilePage: React.FC = () => {
         </div>
 
         <div>
-          <label className="block font-semibold text-slate-700 mb-1">Default Specialty Filter</label>
+          <label className="block font-semibold text-slate-700 mb-1">{t.profile.preferredService}</label>
           <select
             value={preferredService}
             onChange={(e) => setPreferredService(e.target.value)}
@@ -113,7 +113,7 @@ export const ProfilePage: React.FC = () => {
           </Button>
 
           <Button type="submit" variant="primary">
-            {t.common.save}
+            {t.profile.saveBtn}
           </Button>
         </div>
       </form>

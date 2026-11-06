@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAppData } from '../../context/AppDataContext';
 import { storage } from '../../services/database/storage';
 import { Button } from './Button';
+import { C08AuditModal } from './C08AuditModal';
 
 interface HeaderProps {
   onNavigate: (page: string) => void;
@@ -27,13 +28,21 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
-  const { language, setLanguage } = useI18n();
+  const {
+    language,
+    setLanguage,
+    t,
+    c08SimulationActive,
+    setC08SimulationActive,
+    c08MissingKeys,
+  } = useI18n();
   const { user, role, isAuthenticated, logout } = useAuth();
   const { notifications, refreshData } = useAppData();
 
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isC08ModalOpen, setIsC08ModalOpen] = useState(false);
 
   const unreadNotifs = notifications.filter((n) => !n.read);
 
@@ -49,12 +58,12 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
   };
 
   const navItems = [
-    { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-    { id: 'discovery', label: 'Find Healthcare', icon: Search },
-    { id: 'appointments', label: 'My Appointments', icon: CalendarCheck },
-    { id: 'documents', label: 'Documents', icon: FileText },
-    { id: 'journey', label: 'My Journey', icon: Milestone },
-    { id: 'ai', label: 'CarePath AI', icon: Bot },
+    { id: 'dashboard', label: t.nav.overview, icon: LayoutDashboard },
+    { id: 'discovery', label: t.nav.findCare, icon: Search },
+    { id: 'appointments', label: t.nav.appointments, icon: CalendarCheck },
+    { id: 'documents', label: t.nav.documents, icon: FileText },
+    { id: 'journey', label: t.nav.journey, icon: Milestone },
+    { id: 'ai', label: t.nav.aiAssistant, icon: Bot },
   ];
 
   return (
@@ -76,11 +85,32 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
             onClick={() => onNavigate('admin')}
             className="text-xs text-teal-300 hover:text-white underline flex items-center gap-1 font-mono"
           >
-            <span>Open C09 &amp; C02 Lab</span>
+            <span>{t.nav.openLab}</span>
             <ExternalLink className="w-3 h-3" />
           </button>
         </div>
       </div>
+
+      {/* C08 Simulated Incomplete Translation Banner */}
+      {c08SimulationActive && language === 'ta' && (
+        <div className="bg-amber-500 text-slate-950 text-xs py-1 px-4 flex items-center justify-between font-medium">
+          <div className="flex items-center gap-2">
+            <span className="font-bold uppercase tracking-wider text-[10px] bg-amber-950 text-white px-1.5 py-0.5 rounded">
+              C08 DEMO
+            </span>
+            <span>{t.c08.activeSimBanner}</span>
+          </div>
+          <button
+            onClick={() => setIsC08ModalOpen(true)}
+            className="text-[11px] underline font-bold hover:text-black flex items-center gap-1"
+          >
+            <span>{t.c08.auditTitle}</span>
+            <span className="bg-amber-950 text-amber-100 text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+              {c08MissingKeys.length}
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand */}
@@ -95,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
             <div className="flex items-center gap-2">
               <span className="text-xl font-bold tracking-tight text-slate-900">CarePath</span>
             </div>
-            <p className="text-xs text-slate-500 hidden sm:block">Healthcare access, without the confusion</p>
+            <p className="text-xs text-slate-500 hidden sm:block">{t.app.tagline}</p>
           </div>
         </div>
 
@@ -108,7 +138,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
                 currentPage === 'landing' ? 'text-teal-800 font-bold' : ''
               }`}
             >
-              Home
+              {t.nav.home}
             </button>
             <button
               onClick={() => onNavigate('discovery')}
@@ -116,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
                 currentPage === 'discovery' ? 'text-teal-800 font-bold' : ''
               }`}
             >
-              Find Facilities
+              {t.nav.findFacilities}
             </button>
             <a
               href="#how-it-works"
@@ -125,7 +155,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
               }}
               className="hover:text-slate-900 transition-colors"
             >
-              How It Works
+              {t.nav.howItWorks}
             </a>
           </nav>
         ) : (
@@ -149,26 +179,61 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
 
         {/* Right Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Language Switcher */}
-          <div className="relative flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200 text-xs">
-            <button
-              onClick={() => setLanguage('en')}
-              className={`px-2 py-0.5 rounded-md font-medium text-[11px] transition-colors ${
-                language === 'en' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              aria-label="Switch to English"
-            >
-              EN
-            </button>
-            <button
-              onClick={() => setLanguage('ta')}
-              className={`px-2 py-0.5 rounded-md font-medium text-[11px] transition-colors ${
-                language === 'ta' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              aria-label="Switch to Tamil"
-            >
-              தமிழ்
-            </button>
+          {/* Language Switcher & C08 Accessibility Controls */}
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200 text-xs">
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-2 py-0.5 rounded-md font-medium text-[11px] transition-colors ${
+                  language === 'en' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                aria-label="Switch to English"
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLanguage('ta')}
+                className={`px-2 py-0.5 rounded-md font-medium text-[11px] transition-colors ${
+                  language === 'ta' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                aria-label="Switch to Tamil"
+              >
+                தமிழ்
+              </button>
+            </div>
+
+            {/* C08 Scenario Pill when in Tamil */}
+            {language === 'ta' && (
+              <button
+                type="button"
+                onClick={() => setC08SimulationActive(!c08SimulationActive)}
+                className={`hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-lg border transition-colors ${
+                  c08SimulationActive
+                    ? 'bg-amber-100 border-amber-300 text-amber-950 font-bold'
+                    : 'bg-teal-50 border-teal-200 text-teal-800 hover:bg-teal-100'
+                }`}
+                title={t.c08.scenarioDesc}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    c08SimulationActive ? 'bg-amber-600 animate-pulse' : 'bg-teal-600'
+                  }`}
+                />
+                <span>{c08SimulationActive ? 'C08: விடுபடல் மாதிரி' : 'C08 மொழி அணுகல்'}</span>
+              </button>
+            )}
+
+            {/* C08 Audit Log Trigger */}
+            {language === 'ta' && (
+              <button
+                type="button"
+                onClick={() => setIsC08ModalOpen(true)}
+                className="text-[10px] text-slate-500 hover:text-slate-900 px-1.5 py-1 rounded hover:bg-slate-100 font-mono"
+                title="C08 Translation Resolution Audit Log"
+              >
+                தணிக்கை ({c08MissingKeys.length})
+              </button>
+            )}
           </div>
 
           {/* If Authenticated: Notifications & User Profile */}
@@ -382,6 +447,9 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
           )}
         </div>
       )}
+
+      {/* C08 Audit Log Modal */}
+      <C08AuditModal isOpen={isC08ModalOpen} onClose={() => setIsC08ModalOpen(false)} />
     </header>
   );
 };

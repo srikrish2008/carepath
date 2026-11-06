@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAppData } from '../context/AppDataContext';
+import { useI18n } from '../i18n';
 import { NextStepBanner } from '../components/journey/NextStepBanner';
 import { Button } from '../components/common/Button';
 import { calculateJourneyProgress } from '../services/journey/journeyTracker';
@@ -23,6 +24,7 @@ interface DashboardPageProps {
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const { journey, bookings, facilities, patientDocs, docRequirements } = useAppData();
+  const { t } = useI18n();
   const [quickSearch, setQuickSearch] = useState('');
 
   // Patient-specific bookings
@@ -61,20 +63,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[11px] font-semibold mb-2">
             <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
-            <span>Patient Portal</span>
+            <span>{t.dashboard.patientPortal}</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Welcome back, {user?.name || 'Patient'}
+            {t.dashboard.welcome} {user?.name || 'Patient'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Track your healthcare appointments, required documentation, and next steps in one place.
+            {t.dashboard.subtitle}
           </p>
         </div>
 
         {/* Quick Facility Search Box */}
         <form onSubmit={handleQuickSearchSubmit} className="w-full md:w-80">
           <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-            Quick Facility Search
+            {t.dashboard.quickSearchLabel}
           </label>
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -82,7 +84,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               type="text"
               value={quickSearch}
               onChange={(e) => setQuickSearch(e.target.value)}
-              placeholder="Search Cardiology, St. Jude..."
+              placeholder={t.dashboard.quickSearchPlaceholder}
               className="w-full text-xs rounded-xl border-slate-300 pl-9 pr-20 py-2 focus:ring-teal-600 focus:border-teal-600 bg-slate-50"
             />
             <Button
@@ -91,7 +93,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               variant="primary"
               className="absolute right-1 top-1 py-1 px-2.5 text-[11px] bg-slate-900 text-white"
             >
-              Search
+              {t.dashboard.searchBtn}
             </Button>
           </div>
         </form>
@@ -110,7 +112,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <div>
             <div className="flex items-center justify-between text-slate-500 mb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Upcoming Appointment
+                {t.dashboard.activeAppointment}
               </span>
               <CalendarCheck className="w-4 h-4 text-teal-700" />
             </div>
@@ -149,9 +151,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
             ) : (
               <div className="py-8 text-center text-xs text-slate-400 space-y-2">
                 <Clock className="w-8 h-8 mx-auto text-slate-300" />
-                <p className="font-medium text-slate-600">No upcoming appointments</p>
+                <p className="font-medium text-slate-600">{t.dashboard.noUpcoming}</p>
                 <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                  Find a verified hospital or clinic in your area to schedule your visit.
+                  {t.discovery.subtitle}
                 </p>
               </div>
             )}
@@ -165,7 +167,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 className="w-full text-slate-700 hover:bg-slate-50"
                 onClick={() => onNavigate('appointments')}
               >
-                Manage Appointment
+                {t.dashboard.viewDetails}
               </Button>
             ) : (
               <Button
@@ -174,7 +176,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 className="w-full bg-slate-900 hover:bg-slate-800 text-white"
                 onClick={() => onNavigate('discovery')}
               >
-                Find &amp; Book Care
+                {t.dashboard.findCareBtn}
               </Button>
             )}
           </div>
@@ -185,7 +187,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <div>
             <div className="flex items-center justify-between text-slate-500 mb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Document Checklist
+                {t.documents.title}
               </span>
               <FileText className="w-4 h-4 text-teal-700" />
             </div>
@@ -194,7 +196,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               <div className="flex items-baseline justify-between">
                 <span className="text-2xl font-bold text-slate-900">{docReadiness}%</span>
                 <span className="text-xs text-slate-500">
-                  {uploadedDocs.length} of {requiredDocs.length || 0} ready
+                  {uploadedDocs.length} / {requiredDocs.length || 0}
                 </span>
               </div>
 
@@ -207,8 +209,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
 
               <p className="text-[11px] text-slate-500 leading-relaxed">
                 {activeBooking
-                  ? 'Administrative document verification for your upcoming hospital visit.'
-                  : 'Document requirements will be customized automatically once you select a clinic.'}
+                  ? t.documents.subtitle
+                  : t.documents.completionRate}
               </p>
             </div>
           </div>
@@ -220,7 +222,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               className="w-full text-slate-700 hover:bg-slate-50"
               onClick={() => onNavigate('documents')}
             >
-              View Document Requirements
+              {t.dashboard.manageDocs}
             </Button>
           </div>
         </div>
@@ -230,7 +232,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           <div>
             <div className="flex items-center justify-between text-slate-500 mb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                Care Journey Status
+                {t.dashboard.journeyMilestone}
               </span>
               <Milestone className="w-4 h-4 text-teal-700" />
             </div>
@@ -239,7 +241,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               <div className="flex items-baseline justify-between">
                 <span className="text-2xl font-bold text-slate-900">{journeyProgress}%</span>
                 <span className="text-xs font-semibold text-teal-800">
-                  Stage {journey.currentStage} of 7
+                  {t.journey.stageLabel} {journey.currentStage} / 7
                 </span>
               </div>
 
@@ -251,9 +253,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               </div>
 
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Current step:{' '}
+                {t.journey.currentStage}:{' '}
                 <strong className="text-slate-800">
-                  {journey.stages[journey.currentStage]?.name || 'Facility Discovery'}
+                  {t.journey.stages[journey.currentStage as 1 | 2 | 3 | 4 | 5 | 6 | 7]?.name || 'Facility Discovery'}
                 </strong>
               </p>
             </div>
@@ -266,7 +268,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               className="w-full text-slate-700 hover:bg-slate-50"
               onClick={() => onNavigate('journey')}
             >
-              View Full Journey Timeline
+              {t.dashboard.viewTimeline}
             </Button>
           </div>
         </div>
@@ -279,8 +281,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-teal-500 transition-colors text-left space-y-1 shadow-xs"
         >
           <Search className="w-4 h-4 text-teal-600" />
-          <div className="font-bold text-slate-900 text-xs">Find Facilities</div>
-          <p className="text-[11px] text-slate-400">Search clinics by service</p>
+          <div className="font-bold text-slate-900 text-xs">{t.dashboard.browseHospitals}</div>
+          <p className="text-[11px] text-slate-400">{t.discovery.subtitle}</p>
         </button>
 
         <button
@@ -288,8 +290,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-teal-500 transition-colors text-left space-y-1 shadow-xs"
         >
           <FileText className="w-4 h-4 text-teal-600" />
-          <div className="font-bold text-slate-900 text-xs">My Documents</div>
-          <p className="text-[11px] text-slate-400">Review required IDs</p>
+          <div className="font-bold text-slate-900 text-xs">{t.dashboard.uploadPapers}</div>
+          <p className="text-[11px] text-slate-400">{t.documents.title}</p>
         </button>
 
         <button
@@ -297,8 +299,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-teal-500 transition-colors text-left space-y-1 shadow-xs"
         >
           <Bot className="w-4 h-4 text-teal-600" />
-          <div className="font-bold text-slate-900 text-xs">CarePath Guide</div>
-          <p className="text-[11px] text-slate-400">Administrative Q&amp;A</p>
+          <div className="font-bold text-slate-900 text-xs">{t.dashboard.askAssistant}</div>
+          <p className="text-[11px] text-slate-400">{t.ai.subtitle}</p>
         </button>
 
         <button
@@ -306,8 +308,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-teal-500 transition-colors text-left space-y-1 shadow-xs"
         >
           <User className="w-4 h-4 text-teal-600" />
-          <div className="font-bold text-slate-900 text-xs">My Profile</div>
-          <p className="text-[11px] text-slate-400">Accessibility &amp; settings</p>
+          <div className="font-bold text-slate-900 text-xs">{t.dashboard.updateProfile}</div>
+          <p className="text-[11px] text-slate-400">{t.profile.subtitle}</p>
         </button>
       </div>
 
@@ -316,17 +318,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              Verified Healthcare Facilities
+              {t.dashboard.browseHospitals}
             </h3>
             <p className="text-xs text-slate-500">
-              Pre-screened clinics and hospitals matching your area.
+              {t.discovery.subtitle}
             </p>
           </div>
           <button
             onClick={() => onNavigate('discovery')}
             className="text-xs font-semibold text-teal-700 hover:underline flex items-center gap-1"
           >
-            <span>Explore All Facilities</span>
+            <span>{t.discovery.compareBtn}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -341,14 +343,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               <div className="flex items-start justify-between gap-2">
                 <div className="font-bold text-slate-900 text-xs leading-snug">{f.name}</div>
                 <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200 flex-shrink-0">
-                  Verified
+                  {t.facility.verifiedBadge}
                 </span>
               </div>
               <div className="text-xs text-slate-500">
-                {f.location.city} • {f.location.distanceKm} km away
+                {f.location.city} • {f.location.distanceKm} km
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-teal-700 font-semibold pt-1">
-                <span>View Slots &amp; Requirements</span>
+                <span>{t.facility.bookNow}</span>
                 <ArrowRight className="w-3 h-3" />
               </div>
             </div>

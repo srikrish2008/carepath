@@ -19,6 +19,7 @@ import {
 import type { Facility } from '../../types';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
+import { useI18n } from '../../i18n';
 
 export interface FacilityComparisonModalProps {
   isOpen: boolean;
@@ -39,6 +40,8 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
   onSelectFacility,
   onBookFacility,
 }) => {
+  const { t, language } = useI18n();
+
   // Check if a specific attribute differs across selected facilities
   const hasDifference = useMemo(() => {
     return (getValue: (f: Facility) => any): boolean => {
@@ -51,13 +54,13 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
   const formatFacilityType = (type: Facility['facilityType']): string => {
     switch (type) {
       case 'hospital':
-        return 'Hospital / Health System';
+        return language === 'ta' ? 'மருத்துவமனை / சுகாதார அமைப்பு' : 'Hospital / Health System';
       case 'specialty_clinic':
-        return 'Specialty Outpatient Clinic';
+        return language === 'ta' ? 'சிறப்பு வெளிநோயாளி மருத்துவமனை' : 'Specialty Outpatient Clinic';
       case 'community_health_center':
-        return 'Community Health Centre';
+        return language === 'ta' ? 'சமூக சுகாதார மையம்' : 'Community Health Centre';
       case 'diagnostic_center':
-        return 'Diagnostic & Imaging Centre';
+        return language === 'ta' ? 'நோய் கண்டறிதல் & ஸ்கேன் மையம்' : 'Diagnostic & Imaging Centre';
       default:
         return type;
     }
@@ -65,9 +68,9 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
 
   const getEmergencyCare = (facility: Facility): { available: boolean; label: string } => {
     if (facility.facilityType === 'hospital') {
-      return { available: true, label: 'Available (24/7 Hospital Emergency Dept)' };
+      return { available: true, label: t.comparison.emergency247 };
     }
-    return { available: false, label: 'Not Available (Scheduled Outpatient Only)' };
+    return { available: false, label: t.comparison.emergencyNone };
   };
 
   if (!isOpen) return null;
@@ -76,8 +79,8 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Facility Administrative Comparison"
-      description="Side-by-side comparison of verified healthcare access requirements, accessibility, and service availability."
+      title={t.comparison.title}
+      description={t.comparison.subtitle}
       maxWidth="6xl"
     >
       <div className="space-y-6">
@@ -88,14 +91,14 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
               <ArrowLeftRight className="w-6 h-6" />
             </div>
             <h4 className="text-base font-semibold text-slate-800">
-              No facilities selected for comparison
+              {t.comparison.zeroTitle}
             </h4>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Return to the discovery directory and check the &ldquo;Compare&rdquo; box on two or more clinics to compare their services and requirements.
+              {t.comparison.zeroDesc}
             </p>
             <div className="pt-2">
               <Button variant="primary" size="sm" onClick={onClose}>
-                Return to Discovery
+                {t.comparison.returnBtn}
               </Button>
             </div>
           </div>
@@ -106,11 +109,15 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
               <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-xs text-amber-900">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <span className="font-semibold">Minimum selection required for comparison:</span>{' '}
-                  You have selected 1 facility. Select at least one more facility to view differences side by side.
+                  <span className="font-semibold">
+                    {language === 'ta' ? 'ஒப்பீட்டிற்கு குறைந்தபட்ச தேர்வு தேவை:' : 'Minimum selection required for comparison:'}
+                  </span>{' '}
+                  {language === 'ta'
+                    ? 'நீங்கள் 1 மருத்துவமனையை மட்டுமே தேர்ந்தெடுத்துள்ளீர்கள். வேறுபாடுகளை அருகருகே காண மேலும் ஒரு மருத்துவமனையைத் தேர்ந்தெடுக்கவும்.'
+                    : 'You have selected 1 facility. Select at least one more facility to view differences side by side.'}
                 </div>
                 <Button variant="outline" size="sm" onClick={onClose}>
-                  Add Another Facility
+                  {t.comparison.addSecond}
                 </Button>
               </div>
             )}
@@ -124,7 +131,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     <th className="p-4 w-44 min-w-[176px] align-bottom text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
                       <div className="flex items-center gap-1.5">
                         <ArrowLeftRight className="w-4 h-4 text-brand-600" />
-                        <span>Criteria ({facilities.length})</span>
+                        <span>{language === 'ta' ? `அளவுருக்கள் (${facilities.length})` : `Criteria (${facilities.length})`}</span>
                       </div>
                     </th>
                     {facilities.map((facility) => (
@@ -148,11 +155,11 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                             >
                               <ShieldCheck className="w-3 h-3" />
                               {facility.sourceVerificationStatus === 'verified'
-                                ? 'Verified'
+                                ? t.facility.verifiedBadge
                                 : facility.sourceVerificationStatus === 'has_conflicts'
-                                ? 'Conflicts'
+                                ? t.facility.conflictBadge
                                 : facility.sourceVerificationStatus === 'stale'
-                                ? 'Stale (>180d)'
+                                ? t.facility.staleBadge
                                 : 'Unverified'}
                             </span>
 
@@ -160,11 +167,11 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                               type="button"
                               onClick={() => onRemoveFacility(facility.id)}
                               className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-slate-100 transition-colors"
-                              title="Remove facility from comparison"
+                              title={t.comparison.remove}
                               aria-label={`Remove ${facility.name} from comparison`}
                             >
                               <X className="w-3.5 h-3.5" />
-                              <span>Remove</span>
+                              <span>{t.comparison.remove}</span>
                             </button>
                           </div>
 
@@ -190,7 +197,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                               className="w-full flex items-center justify-center gap-1 text-[11px] py-1"
                             >
                               <Calendar className="w-3 h-3" />
-                              <span>Book Appointment</span>
+                              <span>{t.comparison.bookThisFacility}</span>
                             </Button>
                             <Button
                               size="sm"
@@ -201,7 +208,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                               }}
                               className="w-full flex items-center justify-center gap-1 text-[11px] py-1"
                             >
-                              <span>View Profile</span>
+                              <span>{t.comparison.viewProfile}</span>
                             </Button>
                           </div>
                         </div>
@@ -214,13 +221,13 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                         <div className="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center flex flex-col items-center justify-center space-y-2">
                           <PlusCircle className="w-7 h-7 text-brand-500" />
                           <h4 className="font-semibold text-slate-800 text-xs">
-                            Add a Second Facility
+                            {t.comparison.addSecond}
                           </h4>
                           <p className="text-[11px] text-slate-500 max-w-[190px]">
-                            Return to discovery to select another facility for side-by-side comparison.
+                            {t.comparison.zeroDesc}
                           </p>
                           <Button variant="outline" size="sm" onClick={onClose} className="mt-1">
-                            Return to Discovery
+                            {t.comparison.returnBtn}
                           </Button>
                         </div>
                       </th>
@@ -241,10 +248,10 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
                       <div className="flex items-center gap-1.5">
                         <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Location &amp; Distance</span>
+                        <span>{t.comparison.location}</span>
                         {hasDifference((f) => f.location.distanceKm) && (
                           <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                            Differs
+                            {t.comparison.differs}
                           </span>
                         )}
                       </div>
@@ -262,7 +269,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     ))}
                     {facilities.length === 1 && (
                       <td className="p-3.5 border-l border-slate-100 bg-slate-50/20 text-slate-400 italic">
-                        Select facility to compare
+                        {t.comparison.selectToCompare}
                       </td>
                     )}
                   </tr>
@@ -276,10 +283,10 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
                       <div className="flex items-center gap-1.5">
                         <FileQuestion className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Referral Policy</span>
+                        <span>{t.comparison.referral}</span>
                         {hasDifference((f) => f.referralRequired) && (
                           <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                            Differs
+                            {t.comparison.differs}
                           </span>
                         )}
                       </div>
@@ -289,24 +296,24 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                         {f.referralRequired ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                             <AlertTriangle className="w-3 h-3 text-amber-600" />
-                            Doctor Referral Required
+                            {t.comparison.referralRequired}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Self-Referral Accepted (Direct)
+                            {t.comparison.referralNotRequired}
                           </span>
                         )}
                         <p className="text-[11px] text-slate-500 mt-1">
                           {f.referralRequired
-                            ? 'Requires a physician referral letter before an appointment can be confirmed.'
-                            : 'No physician referral required; direct booking and walk-in requests supported.'}
+                            ? (language === 'ta' ? 'முன்பதிவை உறுதி செய்வதற்கு முன் மருத்துவரின் பரிந்துரைக் கடிதம் தேவை.' : 'Requires a physician referral letter before an appointment can be confirmed.')
+                            : (language === 'ta' ? 'மருத்துவர் பரிந்துரை தேவையில்லை; நேரடி முன்பதிவு செய்யலாம்.' : 'No physician referral required; direct booking and walk-in requests supported.')}
                         </p>
                       </td>
                     ))}
                     {facilities.length === 1 && (
                       <td className="p-3.5 border-l border-slate-100 bg-slate-50/20 text-slate-400 italic">
-                        Select facility to compare
+                        {t.comparison.selectToCompare}
                       </td>
                     )}
                   </tr>
@@ -322,10 +329,10 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
                       <div className="flex items-center gap-1.5">
                         <Siren className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Emergency Care</span>
+                        <span>{t.comparison.emergency}</span>
                         {hasDifference((f) => getEmergencyCare(f).available) && (
                           <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                            Differs
+                            {t.comparison.differs}
                           </span>
                         )}
                       </div>
@@ -369,10 +376,10 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
                       <div className="flex items-center gap-1.5">
                         <Accessibility className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Wheelchair Access</span>
+                        <span>{t.comparison.wheelchair}</span>
                         {hasDifference((f) => f.accessibility.wheelchair) && (
                           <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                            Differs
+                            {t.comparison.differs}
                           </span>
                         )}
                       </div>
@@ -383,25 +390,25 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                           <div className="space-y-0.5">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                              Step-Free / Ramp Access
+                              {t.comparison.accessible}
                             </span>
                             {f.accessibility.verified && (
                               <span className="block text-[10px] text-emerald-700 font-medium">
-                                ✓ Verified on-site
+                                ✓ {language === 'ta' ? 'தளத்தில் சரிபார்க்கப்பட்டது' : 'Verified on-site'}
                               </span>
                             )}
                           </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-200">
                             <X className="w-3 h-3 text-rose-600" />
-                            Step Access Only (No Ramp)
+                            {t.comparison.notAccessible}
                           </span>
                         )}
                       </td>
                     ))}
                     {facilities.length === 1 && (
                       <td className="p-3.5 border-l border-slate-100 bg-slate-50/20 text-slate-400 italic">
-                        Select facility to compare
+                        {t.comparison.selectToCompare}
                       </td>
                     )}
                   </tr>
@@ -420,13 +427,13 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
                       <div className="flex items-center gap-1.5">
                         <Accessibility className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Sensory &amp; Comm. Supports</span>
+                        <span>{t.comparison.sensoryTitle}</span>
                         {hasDifference(
                           (f) =>
                             `${f.accessibility.audioAssistance}-${f.accessibility.signLanguage}-${f.accessibility.lowVisionSupport}`
                         ) && (
                           <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                            Differs
+                            {t.comparison.differs}
                           </span>
                         )}
                       </div>
@@ -441,7 +448,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                                 : 'text-slate-400'
                             }
                           >
-                            {f.accessibility.audioAssistance ? '✓' : '✕'} Audio assistance
+                            {f.accessibility.audioAssistance ? '✓' : '✕'} {t.onboarding.audio}
                           </span>
                         </div>
                         <div className="text-[11px] flex items-center gap-1.5">
@@ -452,7 +459,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                                 : 'text-slate-400'
                             }
                           >
-                            {f.accessibility.signLanguage ? '✓' : '✕'} Sign language interpretation
+                            {f.accessibility.signLanguage ? '✓' : '✕'} {t.onboarding.signLanguage}
                           </span>
                         </div>
                         <div className="text-[11px] flex items-center gap-1.5">
@@ -463,14 +470,14 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                                 : 'text-slate-400'
                             }
                           >
-                            {f.accessibility.lowVisionSupport ? '✓' : '✕'} Low vision / Large print
+                            {f.accessibility.lowVisionSupport ? '✓' : '✕'} {t.onboarding.lowVision}
                           </span>
                         </div>
                       </td>
                     ))}
                     {facilities.length === 1 && (
                       <td className="p-3.5 border-l border-slate-100 bg-slate-50/20 text-slate-400 italic">
-                        Select facility to compare
+                        {t.comparison.selectToCompare}
                       </td>
                     )}
                   </tr>
@@ -486,10 +493,10 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
                       <div className="flex items-center gap-1.5">
                         <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Specialties</span>
+                        <span>{t.comparison.specialtiesTitle}</span>
                         {hasDifference((f) => f.specialties.slice().sort().join(',')) && (
                           <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                            Differs
+                            {t.comparison.differs}
                           </span>
                         )}
                       </div>
@@ -510,7 +517,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     ))}
                     {facilities.length === 1 && (
                       <td className="p-3.5 border-l border-slate-100 bg-slate-50/20 text-slate-400 italic">
-                        Select facility to compare
+                        {t.comparison.selectToCompare}
                       </td>
                     )}
                   </tr>
@@ -520,7 +527,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Services &amp; Wait Times</span>
+                        <span>{t.comparison.servicesTitle}</span>
                       </div>
                     </td>
                     {facilities.map((f) => (
@@ -554,10 +561,10 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     }
                   >
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
-                      <span>Supported Languages</span>
+                      <span>{t.comparison.languagesTitle}</span>
                       {hasDifference((f) => f.supportedLanguages.slice().sort().join(',')) && (
                         <span className="ml-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                          Differs
+                          {t.comparison.differs}
                         </span>
                       )}
                     </td>
@@ -577,7 +584,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     ))}
                     {facilities.length === 1 && (
                       <td className="p-3.5 border-l border-slate-100 bg-slate-50/20 text-slate-400 italic">
-                        Select facility to compare
+                        {t.comparison.selectToCompare}
                       </td>
                     )}
                   </tr>
@@ -585,7 +592,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                   {/* Row 9: Contact Details */}
                   <tr>
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
-                      <span>Direct Contact</span>
+                      <span>{t.comparison.contactTitle}</span>
                     </td>
                     {facilities.map((f) => (
                       <td key={f.id} className="p-3.5 border-l border-slate-100 align-top space-y-1">
@@ -603,7 +610,7 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                     ))}
                     {facilities.length === 1 && (
                       <td className="p-3.5 border-l border-slate-100 bg-slate-50/20 text-slate-400 italic">
-                        Select facility to compare
+                        {t.comparison.selectToCompare}
                       </td>
                     )}
                   </tr>
@@ -611,24 +618,24 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
                   {/* Row 10: Administrative Governance */}
                   <tr>
                     <td className="p-3.5 font-medium text-slate-800 bg-slate-50/50">
-                      <span>Verification Record</span>
+                      <span>{t.comparison.verificationTitle}</span>
                     </td>
                     {facilities.map((f) => (
                       <td key={f.id} className="p-3.5 border-l border-slate-100 align-top">
                         <div className="text-[10px] text-slate-500">
-                          Last verified:{' '}
+                          {language === 'ta' ? 'கடைசியாக சரிபார்க்கப்பட்டது:' : 'Last verified:'}{' '}
                           <span className="font-mono text-slate-700">
                             {new Date(f.lastVerifiedAt).toLocaleDateString()}
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-400 mt-0.5">
-                          Synthetic Demo Facility (PS3 Protocol)
+                          {t.facility.syntheticLabel}
                         </div>
                       </td>
                     ))}
                     {facilities.length === 1 && (
                       <td className="p-3.5 border-l border-slate-100 bg-slate-50/20 text-slate-400 italic">
-                        Select facility to compare
+                        {t.comparison.selectToCompare}
                       </td>
                     )}
                   </tr>
@@ -640,16 +647,16 @@ export const FacilityComparisonModal: React.FC<FacilityComparisonModalProps> = (
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={onClearAll} className="text-rose-600 hover:text-rose-700 hover:bg-rose-50">
-                  Clear All Comparisons
+                  {t.comparison.clearAll}
                 </Button>
                 <span className="text-xs text-slate-400">
-                  Comparing {facilities.length} {facilities.length === 1 ? 'facility' : 'facilities'}
+                  {t.comparison.comparing} {facilities.length} {facilities.length === 1 ? t.comparison.facility : t.comparison.facilities}
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={onClose}>
-                  Return to Discovery
+                  {t.comparison.returnBtn}
                 </Button>
               </div>
             </div>

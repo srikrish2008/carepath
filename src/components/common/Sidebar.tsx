@@ -33,7 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => 
     <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex flex-col flex-shrink-0 min-h-[calc(100vh-4rem)]">
       <div className="p-4 flex-1 space-y-1">
         <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">
-          Patient Navigation
+          {t.nav.patientNav}
         </div>
 
         {navItems.map((item) => {
@@ -62,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => 
         {/* System Administration & Verification Tools */}
         <div className="pt-6">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">
-            System &amp; Verification
+            {t.nav.systemVerif}
           </div>
           <button
             onClick={() => onNavigate('admin')}
@@ -85,9 +85,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => 
 
       {/* Patient Guidance Card in Sidebar */}
       <div className="p-4 m-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-        <div className="font-semibold text-slate-800 mb-1">Healthcare Access</div>
+        <div className="font-semibold text-slate-800 mb-1">{t.app.name}</div>
         <p className="text-slate-500 text-[11px] leading-relaxed">
-          Need help preparing for an appointment? Open the assistant guide for administrative checklists.
+          {t.dashboard.subtitle}
         </p>
       </div>
     </aside>
